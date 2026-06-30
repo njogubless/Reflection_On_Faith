@@ -211,34 +211,6 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
     }
   }
 
-  Future<void> _togglePublishStatus(bool newStatus) async {
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
-    try {
-      await FirebaseFirestore.instance
-          .collection(FirebaseConstants.articleCollection)
-          .doc(widget.articleId)
-          .update({'isPublished': newStatus});
-
-      scaffoldMessenger.showSnackBar(
-        SnackBar(
-          content: Text(newStatus
-              ? 'Article published successfully'
-              : 'Article unpublished'),
-          backgroundColor: newStatus ? Colors.green : Colors.orange,
-        ),
-      );
-
-      Navigator.pop(context);
-    } catch (e) {
-      scaffoldMessenger.showSnackBar(
-        SnackBar(
-          content: Text('Error: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
   Future<void> _deleteComment(String commentId) async {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
     try {
@@ -293,12 +265,13 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
   }
 
   Future<void> _updateArticle() async {
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    final ctx = context;
+    final scaffoldMessenger = ScaffoldMessenger.of(ctx);
     final title = _titleController.text.trim();
     final content = _contentController.text.trim();
 
     if (title.isEmpty || content.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      scaffoldMessenger.showSnackBar(
         const SnackBar(content: Text('Please fill in all fields')),
       );
       return;
@@ -321,7 +294,8 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
         ),
       );
 
-      Navigator.pop(context);
+      if (!ctx.mounted) return;
+      Navigator.pop(ctx);
     } catch (e) {
       scaffoldMessenger.showSnackBar(
         SnackBar(content: Text('Error updating article: $e')),
