@@ -1,14 +1,13 @@
 import 'package:devotion/features/Profile/Data/Model/user_profile.dart';
 import 'package:flutter/material.dart';
 
-
 class ProfileStats extends StatelessWidget {
   final UserProfile profile;
-  
+
   const ProfileStats({
-    Key? key,
+    super.key,
     required this.profile,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
