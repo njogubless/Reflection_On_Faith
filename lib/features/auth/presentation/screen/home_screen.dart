@@ -3,9 +3,9 @@ import 'package:devotion/features/articles/presentation/screens/article_detail_s
 import 'package:devotion/features/audio/data/models/audio_model.dart';
 import 'package:devotion/features/audio/presentation/screens/audio_list_page.dart';
 import 'package:devotion/features/audio/presentation/screens/audio_player_page.dart';
+import 'package:devotion/features/auth/controller/auth_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -20,6 +20,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
+
+  // Streams cached as instance variables so they are created only once,
+  // not on every build call.
+  late final Stream<List<AudioFile>> _latestAudiosStream;
+  late final Stream<List<Map<String, dynamic>>> _latestArticlesStream;
+  late final Stream<List<Map<String, dynamic>>> _latestQuestionsStream;
 
   @override
   void initState() {
@@ -37,37 +43,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     );
 
     _animationController.forward();
-  }
 
-  @override
-  void dispose() {
-    _animationController.dispose();
-    super.dispose();
-  }
-
-  Stream<List<AudioFile>> _getLatestAudios() {
-    return FirebaseFirestore.instance
+    _latestAudiosStream = FirebaseFirestore.instance
         .collection('Sermons')
         .orderBy('createdAt', descending: true)
         .limit(3)
         .snapshots()
         .map((snapshot) => snapshot.docs
-            .map((doc) => AudioFile.fromJson(doc.data()))
+            .map((doc) => AudioFile.fromJson({...doc.data(), 'id': doc.id}))
             .toList());
-  }
 
-  Stream<List<Map<String, dynamic>>> _getLatestArticles() {
-    return FirebaseFirestore.instance
+    _latestArticlesStream = FirebaseFirestore.instance
         .collection('article')
         .orderBy('timestamp', descending: true)
         .limit(3)
         .snapshots()
         .map((snapshot) =>
             snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList());
-  }
 
-  Stream<List<Map<String, dynamic>>> _getLatestQuestions() {
-    return FirebaseFirestore.instance
+    _latestQuestionsStream = FirebaseFirestore.instance
         .collection('questions')
         .orderBy('askedAt', descending: true)
         .limit(3)
@@ -76,81 +70,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList());
   }
 
-Future<Map<String, dynamic>> _fetchUserData() async {
-  final user = FirebaseAuth.instance.currentUser;
-  if (user == null) {
-    return {'name': 'Guest', 'email': 'guest@example.com', 'avatarUrl': ''};
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
   }
-
-  final userDoc = await FirebaseFirestore.instance
-      .collection('users')
-      .doc(user.uid)
-      .get();
-
-  if (!userDoc.exists || userDoc.data() == null) {
-    return {
-      'name': user.displayName ?? 'User',
-      'email': user.email ?? 'guest@example.com',
-      'avatarUrl': '',
-    };
-  }
-
-  final data = userDoc.data()!;
-  
-
-  String displayName = 'User';
-  final firstName = data['firstName'] as String?;
-  final lastName = data['lastName'] as String?;
-  
-  if (firstName != null && firstName.isNotEmpty) {
-    if (lastName != null && lastName.isNotEmpty) {
-      displayName = '$firstName $lastName';
-    } else {
-      displayName = firstName;
-    }
-  } else if (lastName != null && lastName.isNotEmpty) {
-    displayName = lastName;
-  } else if (data['name'] != null) {
-
-    displayName = data['name'] as String;
-  } else if (user.displayName != null && user.displayName!.isNotEmpty) {
-
-    displayName = user.displayName!;
-  } else if (user.email != null && user.email!.contains('@')) {
-
-    displayName = user.email!.split('@')[0];
-  }
-  
-  return {
-    'name': displayName,
-    'email': data['email'] as String? ?? user.email ?? 'guest@example.com',
-    'avatarUrl': data['avatarUrl'] as String? ?? '',
-    'firstName': firstName,
-    'lastName': lastName,
-    'phoneNumber': data['phoneNumber'] as String?,
-  };
-}
-
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<Map<String, dynamic>>(
-      future: _fetchUserData(),
-      builder: (context, snapshot) {
-        return CustomScrollView(
-          slivers: [
-            _buildUserHeader(snapshot.data),
-            _buildFeaturedContent(),
-            _buildLatestAudioSection(),
-            _buildLatestArticlesSection(),
-            _buildLatestQuestionsSection(),
-          ],
-        );
-      },
+    // Use the already-loaded UserModel from the shared Riverpod provider.
+    // This avoids an extra Firestore read and a FutureBuilder anti-pattern.
+    final user = ref.watch(userProvider);
+    return CustomScrollView(
+      slivers: [
+        _buildUserHeader(user?.displayName),
+        _buildFeaturedContent(),
+        _buildLatestAudioSection(),
+        _buildLatestArticlesSection(),
+        _buildLatestQuestionsSection(),
+      ],
     );
   }
 
-  Widget _buildUserHeader(Map<String, dynamic>? userData) {
+  Widget _buildUserHeader(String? displayName) {
     return SliverToBoxAdapter(
       child: FadeTransition(
         opacity: _fadeAnimation,
@@ -160,7 +102,7 @@ Future<Map<String, dynamic>> _fetchUserData() async {
             gradient: LinearGradient(
               colors: [
                 Theme.of(context).primaryColor,
-                Theme.of(context).primaryColor.withValues(alpha:0.8),
+                Theme.of(context).primaryColor.withValues(alpha: 0.8),
               ],
             ),
           ),
@@ -182,7 +124,7 @@ Future<Map<String, dynamic>> _fetchUserData() async {
                           ),
                         ),
                         Text(
-                          userData?['name'] ?? 'Loading...',
+                          displayName ?? 'Welcome',
                           style: GoogleFonts.poppins(
                             color: Colors.white,
                             fontSize: 24,
@@ -296,7 +238,7 @@ Future<Map<String, dynamic>> _fetchUserData() async {
           SizedBox(
             height: 180,
             child: StreamBuilder<List<AudioFile>>(
-              stream: _getLatestAudios(),
+              stream: _latestAudiosStream,
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
                   return const Center(child: Text('Error loading audios'));
@@ -338,7 +280,7 @@ Future<Map<String, dynamic>> _fetchUserData() async {
             Container(
               padding: const EdgeInsets.all(15),
               decoration: BoxDecoration(
-                color: Theme.of(context).primaryColor.withValues(alpha:0.1),
+                color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -396,7 +338,7 @@ Future<Map<String, dynamic>> _fetchUserData() async {
           SizedBox(
             height: 180,
             child: StreamBuilder<List<Map<String, dynamic>>>(
-              stream: _getLatestArticles(),
+              stream: _latestArticlesStream,
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
                   return const Center(child: Text('Error loading articles'));
@@ -440,7 +382,7 @@ Future<Map<String, dynamic>> _fetchUserData() async {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.orange.withValues(alpha:0.1),
+                  color: Colors.orange.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
@@ -517,7 +459,7 @@ Future<Map<String, dynamic>> _fetchUserData() async {
             ),
           ),
           StreamBuilder<List<Map<String, dynamic>>>(
-            stream: _getLatestQuestions(),
+            stream: _latestQuestionsStream,
             builder: (context, snapshot) {
               if (snapshot.hasError) {
                 return const Center(child: Text('Error loading questions'));
