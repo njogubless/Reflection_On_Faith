@@ -71,9 +71,9 @@ class BookCard extends ConsumerWidget {
         throw 'No download URL available for this book';
       }
 
-      final fileName = book.fileName ?? '${book.title}.pdf';
-      final file =
-          await storageService.downloadFile(book.storagePath, fileName);
+      final fileName =
+          book.fileName.isNotEmpty ? book.fileName : '${book.title}.pdf';
+      await storageService.downloadFile(book.storagePath, fileName);
 
       final downloadedBooks = ref.read(downloadedBooksProvider.notifier);
       downloadedBooks.update((state) => {...state, book.id});
@@ -113,7 +113,7 @@ class BookCard extends ConsumerWidget {
               child: ClipRRect(
                 borderRadius:
                     const BorderRadius.vertical(top: Radius.circular(12)),
-                child: Container(
+                child: SizedBox(
                   width: double.infinity,
                   child: book.coverUrl.isNotEmpty
                       ? CachedNetworkImage(
