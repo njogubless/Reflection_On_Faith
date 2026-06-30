@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:devotion/features/audio/data/models/audio_model.dart';
-import 'package:devotion/features/audio/presentation/providers/audio_provider.dart';
 import 'package:devotion/features/audio/presentation/providers/audio_recorder_provider.dart';
 import 'package:devotion/features/audio/presentation/widgets/wave_form_painter.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -36,85 +35,83 @@ class _RecordAudioPageState extends ConsumerState<RecordAudioPage> {
     return '$minutes:$seconds';
   }
 
- Future<void> _submitRecording() async {
-  final recordingState = ref.read(audioRecorderProvider);
+  Future<void> _submitRecording() async {
+    final recordingState = ref.read(audioRecorderProvider);
 
-  if (recordingState.recordedFilePath == null) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('No recording available')),
-    );
-    return;
-  }
-
-  if (_titleController.text.isEmpty || 
-      _scriptureController.text.isEmpty || 
-      _ministerController.text.isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Please fill all fields')),
-    );
-    return;
-  }
-
-  try {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(child: CircularProgressIndicator()),
-    );
-
-  
-    final storageRef = FirebaseStorage.instance
-        .ref()
-        .child('audio') 
-        .child('${DateTime.now().millisecondsSinceEpoch}.m4a');
-
-    final audioFile = File(recordingState.recordedFilePath!);
-    final uploadTask = await storageRef.putFile(audioFile);
-    final downloadUrl = await uploadTask.ref.getDownloadURL();
-
-    final devotionDoc = AudioFile(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      title: _titleController.text,
-      url: downloadUrl,
-      coverUrl: '',
-      duration: recordingState.recordingDuration,
-      setUrl: '',
-      uploaderId: FirebaseAuth.instance.currentUser?.uid ?? 'anonymous',
-      uploadDate: DateTime.now(),
-      scripture: _scriptureController.text,
-  
-    );
-
-    await FirebaseFirestore.instance
-        .collection('audio') 
-        .doc(devotionDoc.id)
-        .set(devotionDoc.toJson());
-
-    if (mounted) {
-      Navigator.pop(context); 
-
+    if (recordingState.recordedFilePath == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Recording uploaded successfully'),
-          backgroundColor: Colors.green,
-        ),
+        const SnackBar(content: Text('No recording available')),
+      );
+      return;
+    }
+
+    if (_titleController.text.isEmpty ||
+        _scriptureController.text.isEmpty ||
+        _ministerController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill all fields')),
+      );
+      return;
+    }
+
+    try {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator()),
       );
 
-      Navigator.pop(context); 
-    }
-  } catch (e) {
-    if (mounted) {
-      Navigator.pop(context);
+      final storageRef = FirebaseStorage.instance
+          .ref()
+          .child('audio')
+          .child('${DateTime.now().millisecondsSinceEpoch}.m4a');
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error uploading recording: $e'),
-          backgroundColor: Colors.red,
-        ),
+      final audioFile = File(recordingState.recordedFilePath!);
+      final uploadTask = await storageRef.putFile(audioFile);
+      final downloadUrl = await uploadTask.ref.getDownloadURL();
+
+      final devotionDoc = AudioFile(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        title: _titleController.text,
+        url: downloadUrl,
+        coverUrl: '',
+        duration: recordingState.recordingDuration,
+        setUrl: '',
+        uploaderId: FirebaseAuth.instance.currentUser?.uid ?? 'anonymous',
+        uploadDate: DateTime.now(),
+        scripture: _scriptureController.text,
       );
+
+      await FirebaseFirestore.instance
+          .collection('audio')
+          .doc(devotionDoc.id)
+          .set(devotionDoc.toJson());
+
+      if (mounted) {
+        Navigator.pop(context);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Recording uploaded successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error uploading recording: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
-}
 
   @override
   Widget build(BuildContext context) {
@@ -130,7 +127,9 @@ class _RecordAudioPageState extends ConsumerState<RecordAudioPage> {
       ),
       body: SingleChildScrollView(
         child: SizedBox(
-          height: screenHeight - kToolbarHeight - MediaQuery.of(context).padding.top,
+          height: screenHeight -
+              kToolbarHeight -
+              MediaQuery.of(context).padding.top,
           child: Column(
             children: [
               SizedBox(
@@ -184,7 +183,8 @@ class _RecordAudioPageState extends ConsumerState<RecordAudioPage> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    if (recordingState.isRecording || recordingState.recordedFilePath != null)
+                    if (recordingState.isRecording ||
+                        recordingState.recordedFilePath != null)
                       SizedBox(
                         height: 100,
                         child: CustomPaint(
@@ -205,21 +205,31 @@ class _RecordAudioPageState extends ConsumerState<RecordAudioPage> {
                       children: [
                         if (!recordingState.isRecording)
                           FloatingActionButton(
-                            onPressed: () => ref.read(audioRecorderProvider.notifier).startRecording(),
+                            onPressed: () => ref
+                                .read(audioRecorderProvider.notifier)
+                                .startRecording(),
                             backgroundColor: Colors.red,
                             child: const Icon(Icons.mic),
                           )
                         else ...[
                           FloatingActionButton(
                             onPressed: recordingState.isPaused
-                                ? () => ref.read(audioRecorderProvider.notifier).resumeRecording()
-                                : () => ref.read(audioRecorderProvider.notifier).pauseRecording(),
+                                ? () => ref
+                                    .read(audioRecorderProvider.notifier)
+                                    .resumeRecording()
+                                : () => ref
+                                    .read(audioRecorderProvider.notifier)
+                                    .pauseRecording(),
                             backgroundColor: Colors.orange,
-                            child: Icon(recordingState.isPaused ? Icons.play_arrow : Icons.pause),
+                            child: Icon(recordingState.isPaused
+                                ? Icons.play_arrow
+                                : Icons.pause),
                           ),
                           const SizedBox(width: 20),
                           FloatingActionButton(
-                            onPressed: () => ref.read(audioRecorderProvider.notifier).stopRecording(),
+                            onPressed: () => ref
+                                .read(audioRecorderProvider.notifier)
+                                .stopRecording(),
                             backgroundColor: Colors.red,
                             child: const Icon(Icons.stop),
                           ),
