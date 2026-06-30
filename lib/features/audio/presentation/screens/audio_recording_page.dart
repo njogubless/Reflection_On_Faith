@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:devotion/features/audio/data/models/audio_model.dart';
-import 'package:devotion/features/audio/presentation/providers/audio_provider.dart';
 import 'package:devotion/features/audio/presentation/providers/audio_recorder_provider.dart';
 import 'package:devotion/features/audio/presentation/widgets/wave_form_painter.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -14,7 +13,7 @@ class RecordAudioPage extends ConsumerStatefulWidget {
   const RecordAudioPage({super.key});
 
   @override
-  _RecordAudioPageState createState() => _RecordAudioPageState();
+  ConsumerState<RecordAudioPage> createState() => _RecordAudioPageState();
 }
 
 class _RecordAudioPageState extends ConsumerState<RecordAudioPage> {
@@ -109,7 +108,7 @@ class _RecordAudioPageState extends ConsumerState<RecordAudioPage> {
   Widget build(BuildContext context) {
     final recordingState = ref.watch(audioRecorderProvider);
 
-    Widget _buildControlButton({
+    Widget buildControlButton({
       required VoidCallback onPressed,
       required IconData icon,
       required Color color,
@@ -135,7 +134,7 @@ class _RecordAudioPageState extends ConsumerState<RecordAudioPage> {
       );
     }
 
-    Widget _buildInputField({
+    Widget buildInputField({
       required TextEditingController controller,
       required String label,
       required IconData icon,
@@ -178,7 +177,7 @@ class _RecordAudioPageState extends ConsumerState<RecordAudioPage> {
       );
     }
 
-    Widget _buildRecordingSection() {
+    Widget buildRecordingSection() {
       return Container(
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
@@ -219,7 +218,7 @@ class _RecordAudioPageState extends ConsumerState<RecordAudioPage> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 if (!recordingState.isRecording)
-                  _buildControlButton(
+                  buildControlButton(
                     onPressed: () => ref
                         .read(audioRecorderProvider.notifier)
                         .startRecording(),
@@ -227,7 +226,7 @@ class _RecordAudioPageState extends ConsumerState<RecordAudioPage> {
                     color: Colors.red,
                   )
                 else ...[
-                  _buildControlButton(
+                  buildControlButton(
                     onPressed: recordingState.isPaused
                         ? () => ref
                             .read(audioRecorderProvider.notifier)
@@ -241,7 +240,7 @@ class _RecordAudioPageState extends ConsumerState<RecordAudioPage> {
                     color: Colors.orange,
                   ),
                   const SizedBox(width: 24),
-                  _buildControlButton(
+                  buildControlButton(
                     onPressed: () => ref
                         .read(audioRecorderProvider.notifier)
                         .stopRecording(),
@@ -282,23 +281,23 @@ class _RecordAudioPageState extends ConsumerState<RecordAudioPage> {
                 padding: const EdgeInsets.all(24),
                 sliver: SliverList(
                   delegate: SliverChildListDelegate([
-                    _buildInputField(
+                    buildInputField(
                       controller: _titleController,
                       label: 'Sermon Title',
                       icon: Icons.title,
                     ),
-                    _buildInputField(
+                    buildInputField(
                       controller: _scriptureController,
                       label: 'Scripture Reference',
                       icon: Icons.book,
                     ),
-                    _buildInputField(
+                    buildInputField(
                       controller: _ministerController,
                       label: 'Minister Name',
                       icon: Icons.person,
                     ),
                     const SizedBox(height: 24),
-                    _buildRecordingSection(),
+                    buildRecordingSection(),
                     if (recordingState.recordedFilePath != null) ...[
                       const SizedBox(height: 24),
                       ElevatedButton(
