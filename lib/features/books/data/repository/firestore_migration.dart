@@ -30,13 +30,15 @@ class FirestoreMigration {
           'storagePath': data['storagePath'] ?? 'books/$fileName',
         };
 
-      
         await doc.reference.update(updatedData);
+        // ignore: avoid_print
         print('Updated document: ${doc.id}');
       }
 
+      // ignore: avoid_print
       print('Migration completed successfully!');
     } catch (e) {
+      // ignore: avoid_print
       print('Migration failed: $e');
     }
   }
