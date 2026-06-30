@@ -12,7 +12,6 @@ class SettingsPage extends ConsumerStatefulWidget {
 }
 
 class _SettingsPageState extends ConsumerState<SettingsPage> {
-  bool _notificationsEnabled = true;
   bool _darkModeEnabled = false;
   String _selectedLanguage = 'English';
 
@@ -42,7 +41,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     _prefs = await SharedPreferences.getInstance();
     bool savedDarkMode = _prefs.getBool('darkMode') ?? false;
     setState(() {
-      _notificationsEnabled = _prefs.getBool('notifications') ?? true;
       _darkModeEnabled = _prefs.getBool('darkMode') ?? false;
       _selectedLanguage = _prefs.getString('language') ?? 'English';
       _isLoading = false;
@@ -61,13 +59,15 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
 
   Future<void> _handleLanguageChange(String? language) async {
     if (language != null) {
+      final ctx = context;
       setState(() {
         _selectedLanguage = language;
       });
       await _prefs.setString('language', language);
 
+      if (!ctx.mounted) return;
       showDialog(
-        context: context,
+        context: ctx,
         builder: (BuildContext context) {
           return AlertDialog(
             title: const Text('Language Changed'),
@@ -85,11 +85,13 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   }
 
   Future<void> _signOut() async {
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    final ctx = context;
+    final scaffoldMessenger = ScaffoldMessenger.of(ctx);
     try {
       await _auth.signOut();
 
-      Navigator.of(context).pushReplacementNamed('/login');
+      if (!ctx.mounted) return;
+      Navigator.of(ctx).pushReplacementNamed('/login');
     } catch (e) {
       scaffoldMessenger.showSnackBar(
         SnackBar(
@@ -519,7 +521,8 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
   }
 
   Future<void> _deleteAccount() async {
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    final ctx = context;
+    final scaffoldMessenger = ScaffoldMessenger.of(ctx);
     setState(() => _isLoading = true);
 
     try {
@@ -527,8 +530,8 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
       if (user != null) {
         await user.delete();
 
-        Navigator.of(context)
-            .pushNamedAndRemoveUntil('/login', (route) => false);
+        if (!ctx.mounted) return;
+        Navigator.of(ctx).pushNamedAndRemoveUntil('/login', (route) => false);
       }
     } catch (e) {
       scaffoldMessenger.showSnackBar(
