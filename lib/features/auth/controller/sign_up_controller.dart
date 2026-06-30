@@ -2,25 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter_riverpod/legacy.dart';
 
 class SignUpState {
   final bool isLoading;
   final String? error;
 
-  SignUpState({this.isLoading = false, this.error});
+  const SignUpState({this.isLoading = false, this.error});
 }
 
 final signUpControllerProvider =
-    StateNotifierProvider<SignUpController, SignUpState>(
-        (ref) => SignUpController());
+    NotifierProvider<SignUpController, SignUpState>(SignUpController.new);
 
-class SignUpController extends StateNotifier<SignUpState> {
-  SignUpController() : super(SignUpState());
-
+class SignUpController extends Notifier<SignUpState> {
   final email = TextEditingController();
   final password = TextEditingController();
-  final confirmPassword = TextEditingController(); // ✅ Added confirm password
+  final confirmPassword = TextEditingController();
   final firstName = TextEditingController();
   final lastName = TextEditingController();
   final phoneNumber = TextEditingController();
@@ -29,10 +25,23 @@ class SignUpController extends StateNotifier<SignUpState> {
   final _auth = FirebaseAuth.instance;
   final _firestore = FirebaseFirestore.instance;
 
+  @override
+  SignUpState build() {
+    ref.onDispose(() {
+      email.dispose();
+      password.dispose();
+      confirmPassword.dispose();
+      firstName.dispose();
+      lastName.dispose();
+      phoneNumber.dispose();
+    });
+    return const SignUpState();
+  }
+
   Future<void> signUp(BuildContext context) async {
-    // ✅ Removed duplicate validate() call — screen owns validation
+    // Screen owns validation; controller handles Firebase operations only.
     try {
-      state = SignUpState(isLoading: true);
+      state = const SignUpState(isLoading: true);
 
       final userCredential = await _auth.createUserWithEmailAndPassword(
         email: email.text.trim(),
@@ -40,10 +49,7 @@ class SignUpController extends StateNotifier<SignUpState> {
       );
 
       try {
-        await _firestore
-            .collection('users')
-            .doc(userCredential.user!.uid)
-            .set({
+        await _firestore.collection('users').doc(userCredential.user!.uid).set({
           'firstName': firstName.text.trim(),
           'lastName': lastName.text.trim(),
           'email': email.text.trim(),
@@ -56,7 +62,7 @@ class SignUpController extends StateNotifier<SignUpState> {
       }
 
       _clearForm();
-      state = SignUpState(); // ✅ Reset state before navigation
+      state = const SignUpState();
 
       // ✅ No snackbar or navigation here — SignUpScreen owns that after signUp() returns
     } on FirebaseAuthException catch (e) {
@@ -78,10 +84,10 @@ class SignUpController extends StateNotifier<SignUpState> {
           errorMessage = 'An error occurred during sign up.';
       }
       state = SignUpState(error: errorMessage);
-      rethrow; // ✅ Rethrow so SignUpScreen can catch and show its own snackbar
+      rethrow;
     } catch (e) {
       state = SignUpState(error: e.toString());
-      rethrow; // ✅ Rethrow so SignUpScreen can catch and show its own snackbar
+      rethrow;
     }
   }
 
@@ -92,16 +98,5 @@ class SignUpController extends StateNotifier<SignUpState> {
     firstName.clear();
     lastName.clear();
     phoneNumber.clear();
-  }
-
-  @override
-  void dispose() {
-    email.dispose();
-    password.dispose();
-    confirmPassword.dispose();
-    firstName.dispose();
-    lastName.dispose();
-    phoneNumber.dispose();
-    super.dispose();
   }
 }
