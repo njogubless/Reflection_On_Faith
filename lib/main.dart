@@ -1,16 +1,13 @@
 import 'package:devotion/core/common/loader.dart';
 import 'package:devotion/core/error/error_text.dart';
 import 'package:devotion/features/auth/controller/auth_controller.dart';
-import 'package:devotion/features/auth/data/models/user_models.dart';
 import 'package:devotion/firebase_options.dart';
 import 'package:devotion/config/routes/router.dart';
 import 'package:devotion/theme/theme_notifier.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:routemaster/routemaster.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -26,9 +23,6 @@ void main() async {
     );
   }
 
-
-
-
   final sharedPreferences = await SharedPreferences.getInstance();
 
   runApp(
@@ -41,61 +35,64 @@ void main() async {
   );
 }
 
-class MyApp extends ConsumerStatefulWidget {
+class MyApp extends ConsumerWidget {
   const MyApp({super.key});
 
   @override
-  ConsumerState<ConsumerStatefulWidget> createState() => _MyAppState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final themeState = ref.watch(themeProvider);
+    final authState = ref.watch(authStateChangeProvider);
 
-class _MyAppState extends ConsumerState<MyApp> {
-  UserModel? userModel;
+    return authState.when(
+      // Firebase User stream has emitted — determine which route map to use.
+      data: (firebaseUser) {
+        if (firebaseUser == null) {
+          // Not authenticated — show logged-out routes.
+          return _buildApp(themeState.theme, loggedOutRoute);
+        }
 
-  void fetchDataOnce(User data) async {
-    if (userModel == null) {
-      userModel = await ref
-          .read(authControllerProvider.notifier)
-          .getUserData(data.uid)
-          .first;
-      ref.read(userProvider.notifier).update((state) => userModel);
-      setState(() {});
-    }
+        // Authenticated — load full UserModel from Firestore.
+        return ref.watch(getUserDataProvider(firebaseUser.uid)).when(
+              data: (userModel) {
+              
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (ref.read(userProvider) != userModel) {
+                    ref.read(userProvider.notifier).state = userModel;
+                  }
+                });
+                return _buildApp(themeState.theme, loggedInRoute);
+              },
+              loading: () => _buildLoadingApp(themeState.theme),
+              error: (e, _) => _buildErrorApp(e.toString()),
+            );
+      },
+      loading: () => _buildLoadingApp(themeState.theme),
+      error: (e, _) => _buildErrorApp(e.toString()),
+    );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final themeState = ref.watch(themeProvider);
+  MaterialApp _buildApp(ThemeData theme, RouteMap routes) {
+    return MaterialApp.router(
+      debugShowCheckedModeBanner: false,
+      title: 'Reflection On Faith',
+      theme: theme,
+      routerDelegate: RoutemasterDelegate(routesBuilder: (_) => routes),
+      routeInformationParser: const RoutemasterParser(),
+    );
+  }
 
-    return ref.watch(authStateChangeProvider).when(
-          data: (data) {
-          
-            if (data != null) {
-              fetchDataOnce(data);
+  Widget _buildLoadingApp(ThemeData theme) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      theme: theme,
+      home: const Loader(),
+    );
+  }
 
-              if (userModel != null) {
-                return MaterialApp.router(
-                  debugShowCheckedModeBanner: false,
-                  title: 'Reflection On Faith',
-                  theme: themeState.theme,
-                  routerDelegate:
-                      RoutemasterDelegate(routesBuilder: (_) => loggedInRoute),
-                  routeInformationParser: const RoutemasterParser(),
-                );
-              }
-            }
-
-            // ✅ User is not logged in or userModel not yet loaded
-            return MaterialApp.router(
-              debugShowCheckedModeBanner: false,
-              title: 'Reflection On Faith',
-              theme: themeState.theme,
-              routerDelegate:
-                  RoutemasterDelegate(routesBuilder: (_) => loggedOutRoute),
-              routeInformationParser: const RoutemasterParser(),
-            );
-          },
-          error: (error, stackTrace) => ErrorText(error: error.toString()),
-          loading: () => const Loader(),
-        );
+  Widget _buildErrorApp(String error) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: ErrorText(error: error),
+    );
   }
 }
