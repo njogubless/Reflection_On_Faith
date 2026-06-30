@@ -1,7 +1,5 @@
 import 'package:devotion/features/audio/data/models/audio_model.dart';
-import 'package:devotion/features/audio/presentation/providers/audio_provider.dart';
 import 'package:dio/dio.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -30,9 +28,7 @@ class DownloadNotifier extends StateNotifier<DownloadState> {
   DownloadNotifier(this.audioId) : super(DownloadState.initial());
 
   Future<void> download(List<AudioFile> audioList) async {
-    final AudioFile? audio = audioList.firstWhereOrNull(
-      (a) => a.id == audioId,
-    );
+    final AudioFile? audio = audioList.firstWhereOrNull((a) => a.id == audioId);
 
     if (audio == null) {
       state = DownloadState.failure('Audio file not found.');
