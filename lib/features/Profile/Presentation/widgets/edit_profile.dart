@@ -4,14 +4,13 @@ import 'package:devotion/features/Profile/Domain/Providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-
 class EditProfileSheet extends ConsumerStatefulWidget {
   final UserProfile profile;
-  
+
   const EditProfileSheet({
-    Key? key,
+    super.key,
     required this.profile,
-  }) : super(key: key);
+  });
 
   @override
   ConsumerState<EditProfileSheet> createState() => _EditProfileSheetState();
@@ -37,16 +36,16 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
   Future<void> _saveChanges() async {
     final isLoading = ref.read(isProfileLoadingProvider);
     if (isLoading) return;
-    
+
     ref.read(isProfileLoadingProvider.notifier).state = true;
-    
+
     try {
       final repository = ref.read(profileRepositoryProvider);
       await repository.updateProfile(
         bio: _bioController.text.trim(),
         favoriteGenres: _selectedGenres,
       );
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Profile updated successfully')),
@@ -69,7 +68,7 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
   Widget build(BuildContext context) {
     final isLoading = ref.watch(isProfileLoadingProvider);
     final availableGenres = ref.watch(availableGenresProvider);
-    
+
     return DraggableScrollableSheet(
       initialChildSize: 0.7,
       minChildSize: 0.5,
@@ -116,7 +115,8 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
                   return FilterChip(
                     label: Text(genre),
                     selected: isSelected,
-                    selectedColor: Theme.of(context).primaryColor.withValues(alpha:0.2),
+                    selectedColor:
+                        Theme.of(context).primaryColor.withValues(alpha: 0.2),
                     onSelected: (selected) {
                       setState(() {
                         if (selected) {
@@ -124,7 +124,9 @@ class _EditProfileSheetState extends ConsumerState<EditProfileSheet> {
                             _selectedGenres.add(genre);
                           } else {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('You can select up to 5 genres')),
+                              const SnackBar(
+                                  content:
+                                      Text('You can select up to 5 genres')),
                             );
                           }
                         } else {
