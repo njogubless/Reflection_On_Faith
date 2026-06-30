@@ -12,7 +12,7 @@ class AdminLoginPage extends StatelessWidget {
     final emailController = TextEditingController();
     final passwordController = TextEditingController();
 
-    Future<void> _login(BuildContext context) async {
+    Future<void> login(BuildContext context) async {
       final scaffoldMessenger = ScaffoldMessenger.of(context);
       if (!formKey.currentState!.validate()) return;
 
@@ -33,6 +33,7 @@ class AdminLoginPage extends StatelessWidget {
           final isAdmin = userDoc.data()?['isAdmin'] ?? false;
 
           if (isAdmin) {
+            if (!context.mounted) return;
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(builder: (context) => AdminDashboard()),
             );
@@ -132,7 +133,7 @@ class AdminLoginPage extends StatelessWidget {
                     ),
                     const SizedBox(height: 24),
                     ElevatedButton(
-                      onPressed: () => _login(context),
+                      onPressed: () => login(context),
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(
                             vertical: 14, horizontal: 24),
