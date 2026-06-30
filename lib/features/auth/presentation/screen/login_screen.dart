@@ -50,7 +50,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   void _showForgotPasswordDialog() {
-    final resetEmailController = TextEditingController(); // ✅ Separate controller for dialog
+    final resetEmailController =
+        TextEditingController(); // ✅ Separate controller for dialog
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -163,8 +164,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           return null;
                         },
                         decoration: InputDecoration(
-                          prefixIcon:
-                              const Icon(Iconsax.password_check_bold),
+                          prefixIcon: const Icon(Iconsax.password_check_bold),
                           labelText: TTexts.password,
                           suffixIcon: IconButton(
                             icon: Icon(
@@ -208,6 +208,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         width: double.infinity,
                         child: ElevatedButton(
                           onPressed: () async {
+                            final ctx = context;
+                            final messenger = ScaffoldMessenger.of(ctx);
                             final email = emailController.text.trim();
                             final password = passwordController.text.trim();
 
@@ -220,11 +222,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               final success = await ref
                                   .read(authControllerProvider.notifier)
                                   .signInWithEmailAndPassword(
-                                      context, email, password);
+                                      messenger, email, password);
 
-                              if (success && context.mounted) {
+                              if (success && ctx.mounted) {
                                 Navigator.pushAndRemoveUntil(
-                                  context,
+                                  ctx,
                                   MaterialPageRoute(
                                       builder: (context) => const MainLayout()),
                                   (route) => false,
