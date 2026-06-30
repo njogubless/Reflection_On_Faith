@@ -27,6 +27,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
         const SnackBar(content: Text('File uploaded successfully!')),
       );
 
+      if (!context.mounted) return;
       Navigator.push(
         context,
         MaterialPageRoute(
