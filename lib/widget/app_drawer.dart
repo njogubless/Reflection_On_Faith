@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:devotion/features/admin/presentation/screens/admin_log_in.dart';
 import 'package:devotion/features/auth/Repository/auth_repository.dart';
+import 'package:devotion/features/auth/controller/auth_controller.dart';
 import 'package:devotion/services/bookmark_screen.dart';
 import 'package:devotion/services/help_support.dart';
 import 'package:devotion/services/settings_page.dart';
@@ -11,100 +12,18 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class AppDrawer extends ConsumerStatefulWidget {
   const AppDrawer({super.key});
 
   @override
-  _AppDrawerState createState() => _AppDrawerState();
+  ConsumerState<AppDrawer> createState() => _AppDrawerState();
 }
 
 class _AppDrawerState extends ConsumerState<AppDrawer> {
   bool _isLoading = false;
-
-  Future<Map<String, dynamic>> _fetchUserData() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      return {
-        'name': 'Guest User',
-        'email': 'Sign in to access all features',
-        'avatarUrl': null
-      };
-    }
-
-    try {
-      final userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
-
-      if (!userDoc.exists || userDoc.data() == null) {
-        return {
-          'name': user.displayName ?? 'User',
-          'email': user.email ?? 'No email',
-          'avatarUrl': user.photoURL,
-        };
-      }
-
-      final data = userDoc.data()!;
-
-      String displayName = 'User';
-      final firstName = data['firstName'] as String?;
-      final lastName = data['lastName'] as String?;
-
-      if (firstName != null && firstName.isNotEmpty) {
-        if (lastName != null && lastName.isNotEmpty) {
-          displayName = '$firstName $lastName';
-        } else {
-          displayName = firstName;
-        }
-      } else if (lastName != null && lastName.isNotEmpty) {
-        displayName = lastName;
-      } else if (user.displayName != null && user.displayName!.isNotEmpty) {
-        displayName = user.displayName!;
-      } else if (user.email != null && user.email!.contains('@')) {
-        displayName = user.email!.split('@')[0];
-      }
-
-      return {
-        'name': displayName,
-        'email': data['email'] as String? ?? user.email ?? 'No email',
-        'avatarUrl': data['avatarUrl'] as String? ?? user.photoURL,
-      };
-    } catch (e) {
-      debugPrint('Error fetching user data for drawer: $e');
-      return {
-        'name': user.displayName ?? 'User',
-        'email': user.email ?? 'No email',
-        'avatarUrl': user.photoURL,
-      };
-    }
-  }
-
-  Future<bool> _isUserAdmin() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return false;
-
-    try {
-      final userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
-
-      if (userDoc.exists && userDoc.data() != null) {
-        final userData = userDoc.data() as Map<String, dynamic>;
-
-        return userData['isAdmin'] == true ||
-            userData['role'] == 'admin' ||
-            userData['role'] == 'administrator';
-      }
-    } catch (e) {
-      debugPrint('Error checking admin status: $e');
-    }
-    return false;
-  }
 
   Future<void> launchLink(String link) async {
     try {
@@ -204,133 +123,117 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
   }
 
   Future<void> _shareApp() async {
-    await Share.share(
-      'Check out this amazing app! https://play.google.com/store/apps/details?id=your.app.id',
-      subject: 'Reflection On Faith App',
+    await SharePlus.instance.share(
+      ShareParams(
+        text:
+            'Check out this amazing app! https://play.google.com/store/apps/details?id=your.app.id',
+        subject: 'Reflection On Faith App',
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
+    // Use the already-loaded UserModel from Riverpod — zero extra Firestore reads.
+    final userModel = ref.watch(userProvider);
+    final firebaseUser = FirebaseAuth.instance.currentUser;
     final theme = Theme.of(context);
+
+    final displayName = userModel?.displayName ?? 'Guest User';
+    final email = userModel?.userEmail ?? 'Sign in to access all features';
+    final isAdmin = userModel?.isAdmin ?? false;
+    // Avatar falls back to Firebase Auth photoURL (populated by Google Sign-in).
+    final avatarUrl = firebaseUser?.photoURL;
 
     return Drawer(
       child: Column(
         children: [
-          FutureBuilder<Map<String, dynamic>>(
-            future: _fetchUserData(),
-            builder: (context, snapshot) {
-              final userData = snapshot.data ??
-                  {
-                    'name': 'Loading...',
-                    'email': 'Loading...',
-                    'avatarUrl': null
-                  };
-
-              return UserAccountsDrawerHeader(
-                decoration: BoxDecoration(
-                  color: theme.primaryColor,
-                  image: const DecorationImage(
-                    image: AssetImage('assets/images/ROF.webp'),
-                    fit: BoxFit.cover,
-                    opacity: 0.7,
+          UserAccountsDrawerHeader(
+            decoration: BoxDecoration(
+              color: theme.primaryColor,
+              image: const DecorationImage(
+                image: AssetImage('assets/images/ROF.webp'),
+                fit: BoxFit.cover,
+                opacity: 0.7,
+              ),
+            ),
+            accountName: Text(
+              displayName,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+            accountEmail: Text(
+              email,
+              style: const TextStyle(fontSize: 14),
+            ),
+            currentAccountPicture: GestureDetector(
+              onTap: firebaseUser != null ? _uploadProfilePicture : null,
+              child: Stack(
+                alignment: Alignment.bottomRight,
+                children: [
+                  CircleAvatar(
+                    backgroundColor: Colors.white,
+                    radius: 32,
+                    child: _isLoading
+                        ? const CircularProgressIndicator()
+                        : ClipOval(
+                            child: avatarUrl != null
+                                ? CachedNetworkImage(
+                                    imageUrl: avatarUrl,
+                                    placeholder: (context, url) =>
+                                        const CircularProgressIndicator(),
+                                    errorWidget: (context, url, error) =>
+                                        _buildFallbackAvatar(
+                                            displayName, theme),
+                                    fit: BoxFit.cover,
+                                    width: 60,
+                                    height: 60,
+                                  )
+                                : _buildFallbackAvatar(displayName, theme),
+                          ),
                   ),
-                ),
-                accountName: Text(
-                  userData['name'] as String,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-                accountEmail: Text(
-                  userData['email'] as String,
-                  style: const TextStyle(fontSize: 14),
-                ),
-                currentAccountPicture: GestureDetector(
-                  onTap: user != null ? _uploadProfilePicture : null,
-                  child: Stack(
-                    alignment: Alignment.bottomRight,
-                    children: [
-                      CircleAvatar(
-                        backgroundColor: Colors.white,
-                        radius: 32,
-                        child: _isLoading
-                            ? const CircularProgressIndicator()
-                            : ClipOval(
-                                child: userData['avatarUrl'] != null
-                                    ? CachedNetworkImage(
-                                        imageUrl:
-                                            userData['avatarUrl'] as String,
-                                        placeholder: (context, url) =>
-                                            const CircularProgressIndicator(),
-                                        errorWidget: (context, url, error) =>
-                                            _buildFallbackAvatar(
-                                                userData['name'] as String,
-                                                theme),
-                                        fit: BoxFit.cover,
-                                        width: 60,
-                                        height: 60,
-                                      )
-                                    : _buildFallbackAvatar(
-                                        userData['name'] as String, theme),
-                              ),
+                  if (firebaseUser != null)
+                    Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: theme.primaryColor,
+                        shape: BoxShape.circle,
                       ),
-                      if (user != null)
-                        Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                            color: theme.primaryColor,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.edit,
-                            color: Colors.white,
-                            size: 16,
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              );
-            },
+                      child: const Icon(
+                        Icons.edit,
+                        color: Colors.white,
+                        size: 16,
+                      ),
+                    ),
+                ],
+              ),
+            ),
           ),
           Expanded(
             child: ListView(
               padding: EdgeInsets.zero,
               children: [
-                if (user != null) ...[
-                  ListTile(
-                    leading: const Icon(Icons.person),
-                    title: const Text('Profile'),
-                    onTap: () {},
+                if (firebaseUser != null) ...[
+                  const ListTile(
+                    leading: Icon(Icons.person),
+                    title: Text('Profile'),
                   ),
                 ],
-         
-                FutureBuilder<bool>(
-                  future: _isUserAdmin(),
-                  builder: (context, snapshot) {
-                    final isAdmin = snapshot.data ?? false;
-
-                   
-                    if (!isAdmin) {
-                      return const SizedBox.shrink();
-                    }
-
-                    return ListTile(
-                      leading: const Icon(Icons.lock),
-                      title: const Text("Admin Login"),
-                      onTap: () {
-                        Navigator.pop(context);
-                        Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (context) => AdminLoginPage()));
-                      },
-                    );
-                  },
-                ),
+                if (isAdmin)
+                  ListTile(
+                    leading: const Icon(Icons.lock),
+                    title: const Text('Admin Login'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => AdminLoginPage()),
+                      );
+                    },
+                  ),
                 ListTile(
                   leading: const Icon(Icons.public),
                   title: const Text("Website"),
@@ -343,8 +246,8 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                   onTap: _shareApp,
                 ),
                 ListTile(
-                  leading: Icon(Icons.bookmark),
-                  title: Text('Bookmarks'),
+                  leading: const Icon(Icons.bookmark),
+                  title: const Text('Bookmarks'),
                   onTap: () {
                     Navigator.pop(context);
                     Navigator.push(
@@ -376,7 +279,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                             builder: (context) => HelpSupportPage()));
                   },
                 ),
-                if (user != null)
+                if (firebaseUser != null)
                   ListTile(
                     leading: const Icon(Icons.logout),
                     title: const Text('Sign Out'),
@@ -403,9 +306,8 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                       if (shouldLogout == true) {
                         final authRepository = ref.read(authRepositoryProvider);
                         await authRepository.signOutUser();
-                        if (mounted) {
-                          Navigator.pushReplacementNamed(context, '/');
-                        }
+                        if (!context.mounted) return;
+                        Navigator.pushReplacementNamed(context, '/');
                       }
                     },
                   ),
@@ -429,7 +331,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
       width: 60,
       height: 60,
       decoration: BoxDecoration(
-        color: theme.primaryColor.withOpacity(0.1),
+        color: theme.primaryColor.withValues(alpha: 0.1),
         shape: BoxShape.circle,
       ),
       child: Center(
