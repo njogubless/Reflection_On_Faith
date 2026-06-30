@@ -4,7 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 class RecordingApprovalPage extends StatefulWidget {
-  const RecordingApprovalPage({Key? key}) : super(key: key);
+  const RecordingApprovalPage({super.key});
 
   @override
   State<RecordingApprovalPage> createState() => _RecordingApprovalPageState();
@@ -73,9 +73,9 @@ class _RecordingApprovalPageState extends State<RecordingApprovalPage>
             child: Text(
               'Recording Approval',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).primaryColor,
-              ),
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).primaryColor,
+                  ),
             ),
           ),
           _buildPendingBadge(),
@@ -92,7 +92,7 @@ class _RecordingApprovalPageState extends State<RecordingApprovalPage>
           .snapshots(),
       builder: (context, snapshot) {
         final pendingCount = snapshot.data?.docs.length ?? 0;
-        
+
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
@@ -156,20 +156,20 @@ class _RecordingApprovalPageState extends State<RecordingApprovalPage>
 
   Widget _buildRecordingsList() {
     return StreamBuilder<QuerySnapshot>(
-       stream: _selectedFilter == 'pending'
-        ? FirebaseFirestore.instance
-            .collection('Devotion')
-            .where('approvalStatus', isEqualTo: 'pending')
-            .snapshots()
-        : _selectedFilter == 'approved'
-            ? FirebaseFirestore.instance
-                .collection('Devotion')
-                .where('approvalStatus', isEqualTo: 'approved')
-                .snapshots()
-            : FirebaseFirestore.instance
-                .collection('Devotion')
-                .where('approvalStatus', isEqualTo: 'rejected')
-                .snapshots(),
+      stream: _selectedFilter == 'pending'
+          ? FirebaseFirestore.instance
+              .collection('Devotion')
+              .where('approvalStatus', isEqualTo: 'pending')
+              .snapshots()
+          : _selectedFilter == 'approved'
+              ? FirebaseFirestore.instance
+                  .collection('Devotion')
+                  .where('approvalStatus', isEqualTo: 'approved')
+                  .snapshots()
+              : FirebaseFirestore.instance
+                  .collection('Devotion')
+                  .where('approvalStatus', isEqualTo: 'rejected')
+                  .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return _buildErrorState(snapshot.error.toString());
@@ -204,11 +204,12 @@ class _RecordingApprovalPageState extends State<RecordingApprovalPage>
         children: [
           Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
           const SizedBox(height: 16),
-          Text('Error loading recordings', 
-               style: Theme.of(context).textTheme.headlineSmall),
+          Text('Error loading recordings',
+              style: Theme.of(context).textTheme.headlineSmall),
           const SizedBox(height: 8),
-          Text(error, textAlign: TextAlign.center, 
-               style: TextStyle(color: Colors.grey[600])),
+          Text(error,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey[600])),
           const SizedBox(height: 16),
           ElevatedButton(
             onPressed: () => setState(() {}),
@@ -221,22 +222,35 @@ class _RecordingApprovalPageState extends State<RecordingApprovalPage>
 
   Widget _buildEmptyState() {
     final config = {
-      'pending': {'message': 'No pending recordings', 'icon': Icons.pending_actions, 'color': Colors.orange},
-      'approved': {'message': 'No approved recordings', 'icon': Icons.check_circle, 'color': Colors.green},
-      'rejected': {'message': 'No rejected recordings', 'icon': Icons.cancel, 'color': Colors.red},
+      'pending': {
+        'message': 'No pending recordings',
+        'icon': Icons.pending_actions,
+        'color': Colors.orange
+      },
+      'approved': {
+        'message': 'No approved recordings',
+        'icon': Icons.check_circle,
+        'color': Colors.green
+      },
+      'rejected': {
+        'message': 'No rejected recordings',
+        'icon': Icons.cancel,
+        'color': Colors.red
+      },
     }[_selectedFilter]!;
 
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(config['icon'] as IconData, size: 64, 
-               color: (config['color'] as Color).withValues(alpha: 0.5)),
+          Icon(config['icon'] as IconData,
+              size: 64,
+              color: (config['color'] as Color).withValues(alpha: 0.5)),
           const SizedBox(height: 16),
           Text(config['message'] as String,
-               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                 color: Colors.grey[600],
-               )),
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    color: Colors.grey[600],
+                  )),
         ],
       ),
     );
@@ -265,25 +279,32 @@ class _RecordingApprovalPageState extends State<RecordingApprovalPage>
                 children: [
                   Expanded(
                     child: Text(audioFile.title,
-                         style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        style: const TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold)),
                   ),
                   _buildStatusChip(audioFile.approvalStatus),
                 ],
               ),
               const SizedBox(height: 16),
-            
-              _buildDetailRow(Icons.access_time, 'Duration', _formatDuration(audioFile.duration)),
-              _buildDetailRow(Icons.calendar_today, 'Uploaded', _formatDate(audioFile.uploadDate)),
+              _buildDetailRow(Icons.access_time, 'Duration',
+                  _formatDuration(audioFile.duration)),
+              _buildDetailRow(Icons.calendar_today, 'Uploaded',
+                  _formatDate(audioFile.uploadDate)),
               if (audioFile.approvalStatus != 'pending') ...[
                 const Divider(height: 24),
                 _buildDetailRow(
-                  audioFile.approvalStatus == 'approved' ? Icons.check : Icons.close,
-                  audioFile.approvalStatus == 'approved' ? 'Approved' : 'Rejected',
+                  audioFile.approvalStatus == 'approved'
+                      ? Icons.check
+                      : Icons.close,
+                  audioFile.approvalStatus == 'approved'
+                      ? 'Approved'
+                      : 'Rejected',
                   _formatDate(audioFile.approvedDate ?? DateTime.now()),
                 ),
               ],
               const SizedBox(height: 16),
-              if (audioFile.approvalStatus == 'pending') _buildActionButtons(audioFile.id),
+              if (audioFile.approvalStatus == 'pending')
+                _buildActionButtons(audioFile.id),
             ],
           ),
         ),
@@ -314,7 +335,8 @@ class _RecordingApprovalPageState extends State<RecordingApprovalPage>
           Icon(icon, size: 16, color: color),
           const SizedBox(width: 4),
           Text(status.toUpperCase(),
-               style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 12)),
+              style: TextStyle(
+                  color: color, fontWeight: FontWeight.bold, fontSize: 12)),
         ],
       ),
     );
@@ -327,8 +349,12 @@ class _RecordingApprovalPageState extends State<RecordingApprovalPage>
         children: [
           Icon(icon, size: 16, color: Colors.grey[600]),
           const SizedBox(width: 8),
-          Text('$label: ', style: TextStyle(fontWeight: FontWeight.w500, color: Colors.grey[700])),
-          Expanded(child: Text(value, style: const TextStyle(fontWeight: FontWeight.w400))),
+          Text('$label: ',
+              style: TextStyle(
+                  fontWeight: FontWeight.w500, color: Colors.grey[700])),
+          Expanded(
+              child: Text(value,
+                  style: const TextStyle(fontWeight: FontWeight.w400))),
         ],
       ),
     );
@@ -346,7 +372,8 @@ class _RecordingApprovalPageState extends State<RecordingApprovalPage>
               backgroundColor: Colors.green,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
             ),
           ),
         ),
@@ -360,7 +387,8 @@ class _RecordingApprovalPageState extends State<RecordingApprovalPage>
               backgroundColor: Colors.red,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
             ),
           ),
         ),
@@ -375,7 +403,7 @@ class _RecordingApprovalPageState extends State<RecordingApprovalPage>
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(isApproval ? 'Approve Recording' : 'Reject Recording'),
         content: Text(
-          isApproval 
+          isApproval
               ? 'Are you sure you want to approve this recording? It will be visible to all users.'
               : 'Are you sure you want to reject this recording? This action cannot be undone.',
         ),
@@ -414,7 +442,8 @@ class _RecordingApprovalPageState extends State<RecordingApprovalPage>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Recording ${isApproval ? 'approved' : 'rejected'} successfully'),
+            content: Text(
+                'Recording ${isApproval ? 'approved' : 'rejected'} successfully'),
             backgroundColor: isApproval ? Colors.green : Colors.orange,
           ),
         );
@@ -423,7 +452,8 @@ class _RecordingApprovalPageState extends State<RecordingApprovalPage>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error ${isApproval ? 'approving' : 'rejecting'} recording: $e'),
+            content: Text(
+                'Error ${isApproval ? 'approving' : 'rejecting'} recording: $e'),
             backgroundColor: Colors.red,
           ),
         );
