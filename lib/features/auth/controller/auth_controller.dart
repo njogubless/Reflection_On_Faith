@@ -4,16 +4,13 @@ import 'package:devotion/features/auth/Repository/auth_repository.dart';
 import 'package:devotion/features/auth/presentation/screen/login_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/legacy.dart';
+import 'package:flutter/material.dart';
 
 final userProvider = StateProvider<UserModel?>((ref) => null);
 
-final authControllerProvider = StateNotifierProvider<AuthController, bool>(
-  (ref) => AuthController(
-    authRepository: ref.watch(authRepositoryProvider),
-    ref: ref,
-  ),
+final authControllerProvider = NotifierProvider<AuthController, bool>(
+  AuthController.new,
 );
 
 final authStateChangeProvider = StreamProvider((ref) {
@@ -26,46 +23,47 @@ final getUserDataProvider = StreamProvider.family((ref, String uid) {
   return authController.getUserData(uid);
 });
 
-class AuthController extends StateNotifier<bool> {
-  final AuthRepository _authRepository;
-  final Ref _ref;
+class AuthController extends Notifier<bool> {
+  late final AuthRepository _authRepository;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final Map<String, DateTime> _lastEmailSent = {};
 
-  AuthController({required AuthRepository authRepository, required Ref ref})
-      : _authRepository = authRepository,
-        _ref = ref,
-        super(false);
+  @override
+  bool build() {
+    _authRepository = ref.watch(authRepositoryProvider);
+    return false;
+  }
 
   Stream<User?> get authStateChange => _authRepository.authStateChange;
 
   // ✅ _handleAuthResult no longer navigates — caller (LoginScreen) owns navigation
   Future<bool> _handleAuthResult(
-      BuildContext context, FutureEither<UserModel> result) async {
+      ScaffoldMessengerState messenger, FutureEither<UserModel> result) async {
     state = true;
     final outcome = await result;
     state = false;
 
     return outcome.fold(
       (l) {
-        _showSnackBar(context, l.message);
+        _showSnackBarFromMessenger(messenger, l.message);
         return false; // ✅ Returns false on failure
       },
       (userModel) {
-        _ref.read(userProvider.notifier).update((state) => userModel);
+        ref.read(userProvider.notifier).update((state) => userModel);
         return true; // ✅ Returns true on success, let caller navigate
       },
     );
   }
 
   Future<bool> signInWithGoogle(BuildContext context) async {
-    return _handleAuthResult(context, _authRepository.signInWithGoogle());
+    final messenger = ScaffoldMessenger.of(context);
+    return _handleAuthResult(messenger, _authRepository.signInWithGoogle());
   }
 
   Future<bool> signInWithEmailAndPassword(
-      BuildContext context, String email, String password) async {
+      ScaffoldMessengerState messenger, String email, String password) async {
     return _handleAuthResult(
-        context, _authRepository.signInWithEmailAndPassword(email, password));
+        messenger, _authRepository.signInWithEmailAndPassword(email, password));
   }
 
   Stream<UserModel> getUserData(String uid) {
@@ -125,23 +123,29 @@ class AuthController extends StateNotifier<bool> {
     }
   }
 
-  void _showSnackBar(BuildContext context, String message,
+  void _showSnackBarFromMessenger(
+      ScaffoldMessengerState messenger, String message,
       {bool isError = true}) {
-    ScaffoldMessenger.of(context).showSnackBar(
+    messenger.showSnackBar(
       SnackBar(
         content: Text(message),
         backgroundColor: isError ? Colors.red : Colors.green,
         behavior: SnackBarBehavior.floating,
         margin: const EdgeInsets.all(16),
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
   }
 
+  void _showSnackBar(BuildContext context, String message,
+      {bool isError = true}) {
+    _showSnackBarFromMessenger(ScaffoldMessenger.of(context), message,
+        isError: isError);
+  }
+
   Future<void> signOut(BuildContext context) async {
     await _authRepository.signOutUser();
-    _ref.read(userProvider.notifier).update((state) => null);
+    ref.read(userProvider.notifier).update((state) => null);
     if (context.mounted) {
       // ✅ Use pushAndRemoveUntil to clear the entire back stack on sign out
       Navigator.pushAndRemoveUntil(
