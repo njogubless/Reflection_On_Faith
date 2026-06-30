@@ -22,19 +22,20 @@ class _WriteArticleScreenState extends State<WriteArticleScreen> {
   }
 
   Future<void> _submitArticle() async {
+    final ctx = context;
     final title = _titleController.text.trim();
     final content = _contentController.text.trim();
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    final scaffoldMessenger = ScaffoldMessenger.of(ctx);
 
     if (title.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      scaffoldMessenger.showSnackBar(
         const SnackBar(content: Text('Please enter a title')),
       );
       return;
     }
-    
+
     if (content.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      scaffoldMessenger.showSnackBar(
         const SnackBar(content: Text('Please enter content')),
       );
       return;
@@ -44,8 +45,10 @@ class _WriteArticleScreenState extends State<WriteArticleScreen> {
       final articleCount = await _getArticleCount();
       final today = DateTime.now().toLocal();
       final formattedDate = '${today.day}/${today.month}/${today.year}';
-      
-      await FirebaseFirestore.instance.collection(FirebaseConstants.articleCollection).add({
+
+      await FirebaseFirestore.instance
+          .collection(FirebaseConstants.articleCollection)
+          .add({
         'title': title,
         'content': content,
         'timestamp': FieldValue.serverTimestamp(),
@@ -56,15 +59,15 @@ class _WriteArticleScreenState extends State<WriteArticleScreen> {
 
       scaffoldMessenger.showSnackBar(
         SnackBar(
-          content: Text(_publishImmediately 
-              ? 'Article published successfully!' 
-              : 'Article saved as draft!'
-          ),
+          content: Text(_publishImmediately
+              ? 'Article published successfully!'
+              : 'Article saved as draft!'),
           backgroundColor: _publishImmediately ? Colors.green : Colors.orange,
         ),
       );
-      
-      Navigator.pop(context);
+
+      if (!ctx.mounted) return;
+      Navigator.pop(ctx);
     } catch (e) {
       scaffoldMessenger.showSnackBar(
         SnackBar(content: Text('Error submitting article: $e')),
@@ -122,7 +125,8 @@ class _WriteArticleScreenState extends State<WriteArticleScreen> {
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
               ),
-              child: Text(_publishImmediately ? 'Publish Article' : 'Save as Draft'),
+              child: Text(
+                  _publishImmediately ? 'Publish Article' : 'Save as Draft'),
             ),
           ],
         ),
