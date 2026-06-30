@@ -45,14 +45,15 @@ class AdminAnswerForm extends ConsumerWidget {
               if (_formKey.currentState!.validate()) {
                 final answerText = _answerController.text;
 
-           
-                await ref.read(questionProvider.notifier).answerQuestion(questionId, answerText);
+                await ref
+                    .read(questionProvider.notifier)
+                    .answerQuestion(questionId, answerText);
 
-          
                 _answerController.clear();
-
+                if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Answer submitted successfully!')),
+                  const SnackBar(
+                      content: Text('Answer submitted successfully!')),
                 );
               }
             },
