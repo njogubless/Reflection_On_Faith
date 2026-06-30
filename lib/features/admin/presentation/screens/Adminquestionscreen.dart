@@ -6,7 +6,7 @@ class AdminQuestionScreen extends StatefulWidget {
   const AdminQuestionScreen({super.key});
 
   @override
-  _AdminQuestionScreenState createState() => _AdminQuestionScreenState();
+  State<AdminQuestionScreen> createState() => _AdminQuestionScreenState();
 }
 
 class _AdminQuestionScreenState extends State<AdminQuestionScreen> {
@@ -83,14 +83,15 @@ class AnswerScreen extends StatefulWidget {
   });
 
   @override
-  _AnswerScreenState createState() => _AnswerScreenState();
+  State<AnswerScreen> createState() => _AnswerScreenState();
 }
 
 class _AnswerScreenState extends State<AnswerScreen> {
   final TextEditingController _answerController = TextEditingController();
 
   Future<void> _submitAnswer() async {
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    final ctx = context;
+    final scaffoldMessenger = ScaffoldMessenger.of(ctx);
     final answerText = _answerController.text.trim();
     if (answerText.isNotEmpty) {
       try {
@@ -112,7 +113,8 @@ class _AnswerScreenState extends State<AnswerScreen> {
         scaffoldMessenger.showSnackBar(
           const SnackBar(content: Text('Answer submitted successfully!')),
         );
-        Navigator.pop(context);
+        if (!ctx.mounted) return;
+        Navigator.pop(ctx);
       } catch (e) {
         scaffoldMessenger.showSnackBar(
           SnackBar(content: Text('Error submitting answer: $e')),
