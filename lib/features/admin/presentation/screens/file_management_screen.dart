@@ -165,13 +165,13 @@ class SplitFileManagementScreen extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
-                color: fileType == 'audio' 
-                    ? Colors.blue.shade50 
+                color: fileType == 'audio'
+                    ? Colors.blue.shade50
                     : Colors.green.shade50,
                 border: Border(
                   bottom: BorderSide(
-                    color: fileType == 'audio' 
-                        ? Colors.blue.shade100 
+                    color: fileType == 'audio'
+                        ? Colors.blue.shade100
                         : Colors.green.shade100,
                   ),
                 ),
@@ -181,8 +181,8 @@ class SplitFileManagementScreen extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
-                  color: fileType == 'audio' 
-                      ? Colors.blue.shade600 
+                  color: fileType == 'audio'
+                      ? Colors.blue.shade600
                       : Colors.green.shade600,
                 ),
               ),
@@ -198,7 +198,8 @@ class SplitFileManagementScreen extends StatelessWidget {
                   final data = file.data() as Map<String, dynamic>;
 
                   return Card(
-                    margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                    margin:
+                        const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
                     child: ListTile(
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 16,
@@ -228,7 +229,7 @@ class SplitFileManagementScreen extends StatelessWidget {
                               ),
                             ),
                             Text(
-                              '${_formatFileSize(data['fileSize'] ?? 0)}',
+                              _formatFileSize(data['fileSize'] ?? 0),
                               style: TextStyle(
                                 fontSize: 12,
                                 color: Colors.grey.shade600,
@@ -283,7 +284,7 @@ class SplitFileManagementScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Icon(iconData, color: color, size: 24),
@@ -302,8 +303,9 @@ class SplitFileManagementScreen extends StatelessWidget {
   String _formatFileSize(int bytes) {
     if (bytes < 1024) return '$bytes B';
     if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    if (bytes < 1024 * 1024 * 1024)
+    if (bytes < 1024 * 1024 * 1024) {
       return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    }
     return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
   }
 
