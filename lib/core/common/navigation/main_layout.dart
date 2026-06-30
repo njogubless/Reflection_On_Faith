@@ -1,4 +1,4 @@
-import 'package:devotion/core/providers/Audio_screen.dart.dart';
+import 'package:devotion/core/providers/audio_screen.dart';
 import 'package:devotion/features/Q&A/presentation/screens/question_page.dart';
 import 'package:devotion/features/articles/presentation/screens/article_screen.dart';
 import 'package:devotion/features/audio/presentation/screens/audio_list_page.dart';
@@ -21,13 +21,10 @@ class _MainLayoutState extends State<MainLayout> with TickerProviderStateMixin {
   late AnimationController _controller;
   late List<Animation<double>> _animations;
 
-
   late List<Widget> _screens;
-
 
   int _unreadArticlesCount = 1;
 
-  
   final List<String> _titles = [
     'Home',
     'Audio',
@@ -50,7 +47,6 @@ class _MainLayoutState extends State<MainLayout> with TickerProviderStateMixin {
   void initState() {
     super.initState();
 
-
     _screens = [
       const HomeScreen(),
       AudioScreen(),
@@ -64,7 +60,6 @@ class _MainLayoutState extends State<MainLayout> with TickerProviderStateMixin {
       duration: const Duration(milliseconds: 500),
       vsync: this,
     );
-
 
     _animations = List.generate(
       _screens.length,
@@ -87,7 +82,6 @@ class _MainLayoutState extends State<MainLayout> with TickerProviderStateMixin {
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
-
 
       if (index == 3) {
         _unreadArticlesCount = 0;
@@ -126,7 +120,6 @@ class _MainLayoutState extends State<MainLayout> with TickerProviderStateMixin {
             ],
           ),
         ),
-    
         child: AnimatedSwitcher(
           duration: const Duration(milliseconds: 300),
           transitionBuilder: (child, animation) => FadeTransition(
@@ -158,7 +151,6 @@ class _MainLayoutState extends State<MainLayout> with TickerProviderStateMixin {
             backgroundColor: Colors.white,
             elevation: 0,
             items: List.generate(_screens.length, _buildNavItem),
-         
             selectedItemColor: const Color.fromARGB(255, 82, 169, 240),
             unselectedItemColor: Colors.grey,
             showUnselectedLabels: true,
@@ -202,9 +194,7 @@ class _MainLayoutState extends State<MainLayout> with TickerProviderStateMixin {
                     minHeight: 16,
                   ),
                   child: Text(
-                    _unreadArticlesCount > 99
-                        ? '99+'
-                        : '$_unreadArticlesCount',
+                    _unreadArticlesCount > 99 ? '99+' : '$_unreadArticlesCount',
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 10,
@@ -221,4 +211,3 @@ class _MainLayoutState extends State<MainLayout> with TickerProviderStateMixin {
     );
   }
 }
-
