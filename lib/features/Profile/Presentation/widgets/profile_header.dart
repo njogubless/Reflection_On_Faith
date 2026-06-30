@@ -6,21 +6,21 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
-
 class ProfileHeader extends ConsumerWidget {
   final UserProfile profile;
-  
-  const ProfileHeader({
-    Key? key,
-    required this.profile,
-  }) : super(key: key);
 
-  Future<void> _uploadProfilePicture(BuildContext context, WidgetRef ref) async {
+  const ProfileHeader({
+    super.key,
+    required this.profile,
+  });
+
+  Future<void> _uploadProfilePicture(
+      BuildContext context, WidgetRef ref) async {
     final isLoading = ref.read(isProfileLoadingProvider);
     if (isLoading) return;
-    
+
     ref.read(isProfileLoadingProvider.notifier).state = true;
-    
+
     try {
       final picker = ImagePicker();
       final ImageSource? source = await showDialog<ImageSource>(
@@ -59,12 +59,13 @@ class ProfileHeader extends ConsumerWidget {
       if (pickedFile != null) {
         final repository = ref.read(profileRepositoryProvider);
         await repository.uploadProfilePicture(pickedFile);
-        
+        if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Profile picture updated successfully')),
         );
       }
     } catch (e) {
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to upload image: $e')),
       );
@@ -76,11 +77,11 @@ class ProfileHeader extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isLoading = ref.watch(isProfileLoadingProvider);
-    
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Theme.of(context).primaryColor.withValues(alpha:0.1),
+        color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
       ),
       child: Column(
         children: [
@@ -154,10 +155,14 @@ class ProfileHeader extends ConsumerWidget {
               spacing: 8,
               runSpacing: 8,
               alignment: WrapAlignment.center,
-              children: profile.favoriteGenres.map((genre) => Chip(
-                label: Text(genre),
-                backgroundColor: Theme.of(context).primaryColor.withValues(alpha:0.2),
-              )).toList(),
+              children: profile.favoriteGenres
+                  .map((genre) => Chip(
+                        label: Text(genre),
+                        backgroundColor: Theme.of(context)
+                            .primaryColor
+                            .withValues(alpha: 0.2),
+                      ))
+                  .toList(),
             ),
           ],
         ],
