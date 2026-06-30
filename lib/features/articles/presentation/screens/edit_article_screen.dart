@@ -37,12 +37,13 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
   }
 
   Future<void> _updateArticle() async {
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    final ctx = context;
+    final scaffoldMessenger = ScaffoldMessenger.of(ctx);
     final title = _titleController.text.trim();
     final content = _contentController.text.trim();
 
     if (title.isEmpty || content.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      scaffoldMessenger.showSnackBar(
         const SnackBar(content: Text('Please fill in all fields')),
       );
       return;
@@ -64,8 +65,9 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
           backgroundColor: Colors.green,
         ),
       );
-      
-      Navigator.pop(context);
+
+      if (!ctx.mounted) return;
+      Navigator.pop(ctx);
     } catch (e) {
       scaffoldMessenger.showSnackBar(
         SnackBar(content: Text('Error updating article: $e')),
