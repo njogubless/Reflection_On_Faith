@@ -61,7 +61,7 @@ class PdfViewerWidget extends StatelessWidget {
         horizontal: 16,
         vertical: 8,
       ),
-      color: Theme.of(context).primaryColor.withOpacity(0.1),
+      color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
