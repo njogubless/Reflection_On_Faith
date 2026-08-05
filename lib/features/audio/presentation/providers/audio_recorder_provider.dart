@@ -62,10 +62,20 @@ class AudioRecorderNotifier extends Notifier<AudioRecordingState> {
   void _startTimer() {
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      state = state.copyWith(
-        recordingDuration:
-            state.recordingDuration + const Duration(seconds: 1),
-      );
+      final elapsed = state.recordingDuration + const Duration(seconds: 1);
+
+      if (elapsed >= AudioRecordingState.maxDuration) {
+        // Hard cap: sermons must not exceed 25 minutes. Stop the recorder
+        // itself (not just the timer) so the saved file is never longer
+        // than the limit, regardless of what the submit screen does next.
+        state = state.copyWith(
+          recordingDuration: AudioRecordingState.maxDuration,
+        );
+        stopRecording(didHitDurationLimit: true);
+        return;
+      }
+
+      state = state.copyWith(recordingDuration: elapsed);
     });
   }
 
@@ -104,7 +114,7 @@ class AudioRecorderNotifier extends Notifier<AudioRecordingState> {
     state = state.copyWith(isPaused: false);
   }
 
-  Future<void> stopRecording() async {
+  Future<void> stopRecording({bool didHitDurationLimit = false}) async {
     final path = await _audioRecorder.stop();
     _timer?.cancel();
     _amplitudeTimer?.cancel();
@@ -113,6 +123,7 @@ class AudioRecorderNotifier extends Notifier<AudioRecordingState> {
         isRecording: false,
         isPaused: false,
         recordedFilePath: path,
+        didHitDurationLimit: didHitDurationLimit,
       );
     }
   }

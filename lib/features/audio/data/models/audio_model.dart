@@ -3,8 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 /// Unified audio file model that handles both Firestore schemas:
 ///
 /// Schema A — `Devotion` collection (recorded in-app):
-///   coverUrl, duration, id, isPlaying, scripture, setUrl,
-///   title, uploadDate, uploaderId, url
+///   coverUrl, duration, id, minister, scripture, setUrl,
+///   title, uploadDate, uploaderId, url, approvalStatus
 ///
 /// Schema B — `Sermons` collection (uploaded externally):
 ///   downloadUrl, fileName, fileSize, fileType, uploadedAt
@@ -21,6 +21,7 @@ class AudioFile {
   final String uploaderId;
   final DateTime uploadDate;
   final String scripture;
+  final String minister;
   final String approvalStatus;
   final DateTime? approvedDate;
 
@@ -39,6 +40,7 @@ class AudioFile {
     required this.uploaderId,
     required this.uploadDate,
     required this.scripture,
+    this.minister = '',
     this.approvalStatus = 'pending',
     this.approvedDate,
     this.fileName,
@@ -98,6 +100,7 @@ class AudioFile {
       uploaderId: json['uploaderId'] as String? ?? '',
       uploadDate: uploadDate,
       scripture: json['scripture'] as String? ?? '',
+      minister: json['minister'] as String? ?? '',
       approvalStatus: json['approvalStatus'] as String? ?? 'pending',
       approvedDate: approvedDate,
       fileName: rawFileName.isNotEmpty ? rawFileName : null,
@@ -125,6 +128,7 @@ class AudioFile {
         uploaderId: file.uploaderId,
         uploadDate: file.uploadDate,
         scripture: file.scripture,
+        minister: file.minister,
         approvalStatus: file.approvalStatus,
         approvedDate: file.approvedDate,
         fileName: file.fileName,
@@ -148,6 +152,7 @@ class AudioFile {
         'uploaderId': uploaderId,
         'uploadDate': uploadDate.toIso8601String(),
         'scripture': scripture,
+        'minister': minister,
         'approvalStatus': approvalStatus,
         if (approvedDate != null)
           'approvedDate': approvedDate!.toIso8601String(),
