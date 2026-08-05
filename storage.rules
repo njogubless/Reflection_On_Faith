@@ -1,0 +1,56 @@
+rules_version = '2';
+
+// Devotion (Reflection On Faith) — Storage security rules.
+// No storage.rules existed before this file — see firestore.rules for the
+// full context on why that mattered.
+//
+// Storage itself only holds blobs; the *meaning* of a file (published
+// sermon vs. pending review, etc.) lives in the matching Firestore
+// document, which is what firestore.rules actually governs. These rules
+// are about who may write into each folder and basic file hygiene
+// (signed-in only, size caps, expected content-type) — matching
+// UploadFiles.maxAudioBytes / maxBookBytes on the client.
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() &&
+        firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) &&
+        firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    // audio/ holds both preacher self-recordings (Devotion, pending
+    // review) and admin bulk-uploaded sermons (Sermons) — both flows
+    // write to this same folder, so this can't be admin-only here; the
+    // Firestore rule on each collection is the real access boundary.
+    match /audio/{fileName} {
+      allow read: if true;
+      allow write: if isSignedIn() &&
+        request.resource.size <= 100 * 1024 * 1024 &&
+        request.resource.contentType.matches('audio/.*');
+    }
+
+    // Books/ is only ever written from the admin "Upload Book" flow.
+    match /Books/{fileName} {
+      allow read: if true;
+      allow write: if isAdmin() &&
+        request.resource.size <= 50 * 1024 * 1024;
+    }
+
+    // user_avatars/{uid}_<timestamp>.jpg — only the owning user may write
+    // their own avatar (filename is prefixed with their uid).
+    match /user_avatars/{fileName} {
+      allow read: if true;
+      allow write: if isSignedIn() &&
+        fileName.matches(request.auth.uid + '_.*') &&
+        request.resource.size <= 10 * 1024 * 1024 &&
+        request.resource.contentType.matches('image/.*');
+    }
+
+    // Everything else denied by default.
+  }
+}
