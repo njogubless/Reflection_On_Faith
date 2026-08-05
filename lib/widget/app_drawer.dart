@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:devotion/features/admin/presentation/screens/admin_log_in.dart';
-import 'package:devotion/features/auth/Repository/auth_repository.dart';
 import 'package:devotion/features/auth/controller/auth_controller.dart';
 import 'package:devotion/services/bookmark_screen.dart';
 import 'package:devotion/services/help_support.dart';
@@ -160,13 +159,14 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
             accountName: Text(
               displayName,
               style: const TextStyle(
+                color: Colors.white,
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
               ),
             ),
             accountEmail: Text(
               email,
-              style: const TextStyle(fontSize: 14),
+              style: const TextStyle(color: Colors.white70, fontSize: 14),
             ),
             currentAccountPicture: GestureDetector(
               onTap: firebaseUser != null ? _uploadProfilePicture : null,
@@ -303,11 +303,15 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                         ),
                       );
 
-                      if (shouldLogout == true) {
-                        final authRepository = ref.read(authRepositoryProvider);
-                        await authRepository.signOutUser();
-                        if (!context.mounted) return;
-                        Navigator.pushReplacementNamed(context, '/');
+                      if (shouldLogout == true && context.mounted) {
+                        // Same sign-out path AdminDashboard uses — clears
+                        // userProvider and resets the nav stack, instead of
+                        // signing out of Firebase directly and leaving the
+                        // (now stale) cached UserModel in place until the
+                        // next reactive rebuild happened to clear it.
+                        await ref
+                            .read(authControllerProvider.notifier)
+                            .signOut(context);
                       }
                     },
                   ),

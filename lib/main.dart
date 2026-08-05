@@ -1,6 +1,6 @@
-import 'package:devotion/core/common/loader.dart';
 import 'package:devotion/core/error/error_text.dart';
 import 'package:devotion/features/auth/controller/auth_controller.dart';
+import 'package:devotion/features/auth/presentation/screen/splash_screen.dart';
 import 'package:devotion/firebase_options.dart';
 import 'package:devotion/config/routes/router.dart';
 import 'package:devotion/theme/theme_notifier.dart';
@@ -63,11 +63,11 @@ class MyApp extends ConsumerWidget {
                 return _buildApp(themeState.theme, loggedInRoute);
               },
               loading: () => _buildLoadingApp(themeState.theme),
-              error: (e, _) => _buildErrorApp(e.toString()),
+              error: (e, _) => _buildErrorApp(e.toString(), themeState.theme),
             );
       },
       loading: () => _buildLoadingApp(themeState.theme),
-      error: (e, _) => _buildErrorApp(e.toString()),
+      error: (e, _) => _buildErrorApp(e.toString(), themeState.theme),
     );
   }
 
@@ -85,13 +85,14 @@ class MyApp extends ConsumerWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: theme,
-      home: const Loader(),
+      home: const SplashScreen(),
     );
   }
 
-  Widget _buildErrorApp(String error) {
+  Widget _buildErrorApp(String error, ThemeData theme) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
+      theme: theme,
       home: ErrorText(error: error),
     );
   }

@@ -1,5 +1,4 @@
 import 'package:devotion/core/common/styles/image_strings.dart';
-import 'package:devotion/core/constants/colors.dart';
 import 'package:devotion/core/constants/sizes.dart';
 import 'package:devotion/features/auth/controller/auth_controller.dart';
 import 'package:flutter/material.dart';
@@ -16,7 +15,7 @@ class TSocialButton extends ConsumerWidget {
       children: [
         Container(
           decoration: BoxDecoration(
-            border: Border.all(color: TColors.grey),
+            border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
             borderRadius: BorderRadius.circular(100),
           ),
           child: IconButton(

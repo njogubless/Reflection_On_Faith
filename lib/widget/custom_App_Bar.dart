@@ -1,19 +1,13 @@
-
 import 'package:devotion/services/search.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 class CustomAppBar extends ConsumerWidget implements PreferredSizeWidget {
   final String title;
-  final List<Widget> screens;
-  final int selectedIndex;
 
   const CustomAppBar({
     super.key,
     required this.title,
-    required this.screens,
-    required this.selectedIndex,
   });
 
   @override
@@ -23,10 +17,9 @@ class CustomAppBar extends ConsumerWidget implements PreferredSizeWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final searchState = ref.watch(searchProvider);
     final searchNotifier = ref.read(searchProvider.notifier);
+    final onPrimary = Theme.of(context).colorScheme.onPrimary;
 
     return AppBar(
-      elevation: 0,
-      backgroundColor: Theme.of(context).primaryColor,
       leading: Builder(
         builder: (context) => IconButton(
           icon: const Icon(Icons.menu),
@@ -36,33 +29,24 @@ class CustomAppBar extends ConsumerWidget implements PreferredSizeWidget {
       title: searchState.isSearching
           ? TextField(
               autofocus: true,
-              style: GoogleFonts.poppins(
-                color: Colors.white,
-                fontSize: 16,
-              ),
+              style: TextStyle(color: onPrimary, fontSize: 16),
               decoration: InputDecoration(
                 hintText: 'Search articles, audio, books...',
-                hintStyle: GoogleFonts.poppins(
-                  color: Colors.white70,
-                  fontSize: 16,
-                ),
+                hintStyle: TextStyle(color: onPrimary.withValues(alpha: 0.7), fontSize: 16),
                 border: InputBorder.none,
                 suffixIcon: IconButton(
-                  icon: const Icon(Icons.clear, color: Colors.white70),
+                  icon: Icon(Icons.clear, color: onPrimary.withValues(alpha: 0.7)),
                   onPressed: () => searchNotifier.stopSearch(),
                 ),
               ),
               onChanged: (query) => searchNotifier.performSearch(query),
             )
-          : Text(
-              selectedIndex == 0
-                  ? title
-                  : screens[selectedIndex].runtimeType.toString(),
-              style: GoogleFonts.poppins(
-                fontSize: 24,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+          // Previously this fell back to `screens[selectedIndex].runtimeType
+          // .toString()` for every tab except the first — i.e. it showed the
+          // literal Dart class name ("AudioScreen", "ArticlePage", ...) as
+          // the on-screen title instead of the human-readable one the
+          // caller already computed and passed in.
+          : Text(title),
       actions: [
         IconButton(
           icon: Icon(
@@ -76,7 +60,6 @@ class CustomAppBar extends ConsumerWidget implements PreferredSizeWidget {
             }
           },
         ),
-     
       ],
     );
   }

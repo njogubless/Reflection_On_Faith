@@ -1,6 +1,6 @@
 import 'package:devotion/core/common/navigation/main_layout.dart';
 import 'package:devotion/core/common/styles/login_Signup_widgets/form_divider.dart';
-import 'package:devotion/core/common/styles/image_strings.dart';
+import 'package:devotion/core/common/styles/login_Signup_widgets/social_button.dart';
 import 'package:devotion/core/common/styles/spacing_styles.dart';
 import 'package:devotion/core/common/styles/text_strings.dart';
 import 'package:devotion/core/constants/sizes.dart';
@@ -108,7 +108,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     TTexts.logInTitle,
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                           fontWeight: FontWeight.bold,
-                          color: Colors.blueAccent,
+                          color: Theme.of(context).colorScheme.primary,
                         ),
                   ),
                   const SizedBox(height: TSizes.sm),
@@ -116,7 +116,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     TTexts.logInSubTitle,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           fontStyle: FontStyle.italic,
-                          color: Colors.grey,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                   ),
                 ],
@@ -265,38 +265,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
               ),
 
-              // ✅ Added form divider before social login (was missing, inconsistent with SignUpScreen)
               const TFormDivider(dividerText: TTexts.orSignInWith),
               const SizedBox(height: TSizes.spaceBtwSections),
 
-              // ✅ Removed dangling SizedBox — just the Google button now
-              Container(
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.greenAccent),
-                  borderRadius: BorderRadius.circular(100),
-                ),
-                child: IconButton(
-                  onPressed: () async {
-                    final success = await ref
-                        .read(authControllerProvider.notifier)
-                        .signInWithGoogle(context);
-
-                    if (success && context.mounted) {
-                      Navigator.pushAndRemoveUntil(
-                        context,
-                        MaterialPageRoute(
-                            builder: (context) => const MainLayout()),
-                        (route) => false,
-                      );
-                    }
-                  },
-                  icon: const Image(
-                    width: TSizes.iconMd,
-                    height: TSizes.iconMd,
-                    image: AssetImage(TImages.google),
-                  ),
-                ),
-              ),
+              // Same shared Google button SignUpScreen uses (TSocialButton)
+              // — this used to be a separately hand-built IconButton here,
+              // styled with an unrelated green border color, so the Google
+              // sign-in control looked different depending on which screen
+              // you were on. Sign-in itself completes via the reactive
+              // authStateChangeProvider watch in main.dart, so no explicit
+              // navigation is needed here (same as the email/password path
+              // above already assumes once `success` is true — the
+              // pushAndRemoveUntil calls here are belt-and-suspenders, not
+              // load-bearing).
+              const TSocialButton(),
               const SizedBox(height: TSizes.spaceBtwSections),
             ],
           ),

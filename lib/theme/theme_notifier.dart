@@ -1,3 +1,4 @@
+import 'package:devotion/core/util/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -18,24 +19,13 @@ class ThemeState {
   final bool isDarkMode;
   final Color primaryColor;
 
-  ThemeState({this.isDarkMode = false, this.primaryColor = Colors.blue});
+  ThemeState({this.isDarkMode = false, this.primaryColor = AppTheme.brandSeed});
 
-  ThemeData get theme => ThemeData(
-        primaryColor: primaryColor,
-        brightness: isDarkMode ? Brightness.dark : Brightness.light,
-        useMaterial3: true,
-        cardTheme: CardThemeData(
-          elevation: 2,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-        appBarTheme: AppBarTheme(
-          elevation: 0,
-          backgroundColor: isDarkMode ? Colors.grey[900] : primaryColor,
-          foregroundColor: isDarkMode ? Colors.white : Colors.white,
-        ),
-      );
+  // Delegates to the one real theme definition (AppTheme) instead of
+  // building an ad hoc, mostly-empty ThemeData here — see app_theme.dart
+  // for why that used to be a problem.
+  ThemeData get theme =>
+      isDarkMode ? AppTheme.dark(primaryColor) : AppTheme.light(primaryColor);
 
   ThemeState copyWith({
     bool? isDarkMode,

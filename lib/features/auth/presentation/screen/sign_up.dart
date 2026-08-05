@@ -41,7 +41,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                 TTexts.signUpTitle,
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                       fontWeight: FontWeight.bold,
-                      color: Colors.blueAccent,
+                      color: Theme.of(context).colorScheme.primary,
                     ),
               ),
               const SizedBox(height: TSizes.spaceBtwSections),
