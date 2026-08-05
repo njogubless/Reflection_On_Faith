@@ -74,7 +74,7 @@ class PdfViewerWidget extends StatelessWidget {
               padding: const EdgeInsets.only(left: 16),
               child: LinearProgressIndicator(
                 value: totalPages > 0 ? (currentPage + 1) / totalPages : 0,
-                backgroundColor: Colors.grey.shade300,
+                backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                 minHeight: 3,
               ),
             ),

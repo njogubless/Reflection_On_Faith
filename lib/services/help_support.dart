@@ -237,14 +237,17 @@ class _HelpSupportPageState extends State<HelpSupportPage> {
                           Icon(
                             Icons.search_off,
                             size: 48,
-                            color: Colors.grey[400],
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurfaceVariant
+                                .withValues(alpha: 0.6),
                           ),
                           const SizedBox(height: 16),
                           Text(
                             'No results found',
                             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              color: Colors.grey[600],
-                            ),
+                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                ),
                           ),
                         ],
                       ),

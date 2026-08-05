@@ -42,17 +42,14 @@ class ErrorWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final errorColor = Theme.of(context).colorScheme.error;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              size: 64,
-              color: Colors.red.shade300,
-            ),
+            Icon(icon, size: 64, color: errorColor),
             const SizedBox(height: 16),
             Text(
               title,
@@ -61,7 +58,7 @@ class ErrorWidget extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               message,
-              style: const TextStyle(color: Colors.red),
+              style: TextStyle(color: errorColor),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
@@ -113,15 +110,12 @@ class EmptyStateWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final onSurfaceVariant = Theme.of(context).colorScheme.onSurfaceVariant;
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            icon,
-            size: 64,
-            color: Colors.grey,
-          ),
+          Icon(icon, size: 64, color: onSurfaceVariant.withValues(alpha: 0.6)),
           const SizedBox(height: 16),
           Text(
             title,
@@ -130,9 +124,10 @@ class EmptyStateWidget extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             message,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Colors.grey.shade600,
-            ),
+            style: Theme.of(context)
+                .textTheme
+                .bodyMedium
+                ?.copyWith(color: onSurfaceVariant),
             textAlign: TextAlign.center,
           ),
           if (action != null) ...[

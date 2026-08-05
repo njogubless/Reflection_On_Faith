@@ -1,3 +1,4 @@
+import 'package:devotion/core/common/widgets/state_views.dart';
 import 'package:devotion/features/books/data/models/book_model.dart';
 import 'package:devotion/features/books/data/repository/firebase_storage.dart';
 import 'package:devotion/features/books/presentation/screen/book_reader_screen.dart';
@@ -14,36 +15,37 @@ class BookScreen extends ConsumerWidget {
     final booksAsync = ref.watch(booksProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Library',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        elevation: 0,
-      ),
+      appBar: AppBar(title: const Text('Library')),
       body: booksAsync.when(
-        data: (books) => GridView.builder(
-          padding: const EdgeInsets.all(16),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            childAspectRatio: 0.75,
-            crossAxisSpacing: 16,
-            mainAxisSpacing: 16,
-          ),
-          itemCount: books.length,
-          itemBuilder: (context, index) {
-            final book = books[index];
-            return BookCard(
-              book: book,
+        data: (books) {
+          if (books.isEmpty) {
+            return const EmptyView(
+              icon: Icons.menu_book_outlined,
+              title: 'No books yet',
+              subtitle: 'Books added by an admin will show up here.',
             );
-          },
-        ),
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(
-          child: Text(
-            'Error loading books: $err',
-            style: const TextStyle(color: Colors.red),
-          ),
+          }
+          return GridView.builder(
+            padding: const EdgeInsets.all(16),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              childAspectRatio: 0.75,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+            ),
+            itemCount: books.length,
+            itemBuilder: (context, index) {
+              final book = books[index];
+              return BookCard(
+                book: book,
+              );
+            },
+          );
+        },
+        loading: () => const LoadingView(message: 'Loading library...'),
+        error: (err, stack) => ErrorView(
+          message: 'Could not load books.\n$err',
+          onRetry: () => ref.invalidate(booksProvider),
         ),
       ),
     );
@@ -121,14 +123,14 @@ class BookCard extends ConsumerWidget {
                           fit: BoxFit.cover,
                           width: double.infinity,
                           placeholder: (context, url) => Container(
-                            color: Colors.grey[200],
+                            color: Theme.of(context).colorScheme.surfaceContainerHighest,
                             child: const Center(
                                 child: CircularProgressIndicator()),
                           ),
                           errorWidget: (context, url, error) =>
-                              _buildFallbackCover(),
+                              _buildFallbackCover(context),
                         )
-                      : _buildFallbackCover(),
+                      : _buildFallbackCover(context),
                 ),
               ),
             ),
@@ -162,8 +164,8 @@ class BookCard extends ConsumerWidget {
                           child: Text(
                             book.author,
                             style: TextStyle(
-                              fontSize: 11, // Reduced font size
-                              color: Colors.grey[600],
+                              fontSize: 11,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -228,26 +230,23 @@ class BookCard extends ConsumerWidget {
     );
   }
 
-  Widget _buildFallbackCover() {
+  Widget _buildFallbackCover(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       width: double.infinity,
-      color: Colors.grey[200],
+      color: colorScheme.primary.withValues(alpha: 0.08),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.book,
-            size: 32, // Reduced icon size
-            color: Colors.grey[400],
-          ),
+          Icon(Icons.book, size: 32, color: colorScheme.primary.withValues(alpha: 0.6)),
           const SizedBox(height: 4),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: Text(
               book.title.isNotEmpty ? book.title : 'Book',
               style: TextStyle(
-                fontSize: 10, // Reduced font size
-                color: Colors.grey[600],
+                fontSize: 10,
+                color: colorScheme.onSurfaceVariant,
                 fontWeight: FontWeight.w500,
               ),
               textAlign: TextAlign.center,

@@ -17,6 +17,7 @@ class BookNotFoundWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final onSurfaceVariant = Theme.of(context).colorScheme.onSurfaceVariant;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24.0),
@@ -26,7 +27,7 @@ class BookNotFoundWidget extends StatelessWidget {
             Icon(
               Icons.cloud_download_outlined,
               size: 80,
-              color: Colors.grey.shade400,
+              color: onSurfaceVariant.withValues(alpha: 0.6),
             ),
             const SizedBox(height: 24),
             Text(
@@ -39,9 +40,7 @@ class BookNotFoundWidget extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               'This book is not available offline. Choose an option below:',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Colors.grey.shade600,
-              ),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: onSurfaceVariant),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 32),
@@ -94,19 +93,17 @@ class BookNotFoundWidget extends StatelessWidget {
   }
 
   Widget _buildErrorContainer(BuildContext context) {
+    final errorColor = Theme.of(context).colorScheme.error;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.red.shade50,
+        color: errorColor.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.red.shade200),
+        border: Border.all(color: errorColor.withValues(alpha: 0.3)),
       ),
       child: Text(
         errorMessage,
-        style: TextStyle(
-          color: Colors.red.shade700,
-          fontSize: 14,
-        ),
+        style: TextStyle(color: errorColor, fontSize: 14),
         textAlign: TextAlign.center,
       ),
     );

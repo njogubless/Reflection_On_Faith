@@ -1,3 +1,5 @@
+import 'package:devotion/core/common/widgets/state_views.dart';
+import 'package:devotion/features/Profile/Data/Model/user_profile.dart';
 import 'package:devotion/features/Profile/Domain/Providers.dart';
 import 'package:devotion/features/Profile/Presentation/widgets/edit_profile.dart';
 import 'package:devotion/features/Profile/Presentation/widgets/profile_header.dart';
@@ -6,11 +8,10 @@ import 'package:devotion/features/Profile/Presentation/widgets/profile_tabs.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
-  void _showEditProfileDialog(BuildContext context, dynamic profile) {
+  void _showEditProfileDialog(BuildContext context, UserProfile profile) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -26,7 +27,7 @@ class ProfileScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final profileAsyncValue = ref.watch(userProfileProvider);
-    
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('My Profile'),
@@ -45,22 +46,27 @@ class ProfileScreen extends ConsumerWidget {
       body: profileAsyncValue.when(
         data: (profile) {
           if (profile == null) {
-            return const Center(child: Text('Please sign in to view your profile'));
+            return const EmptyView(
+              icon: Icons.person_outline,
+              title: 'Please sign in',
+              subtitle: 'Sign in to view your profile.',
+            );
           }
-          
+
           return SafeArea(
             child: Column(
               children: [
                 ProfileHeader(profile: profile),
-                ProfileStats(profile: profile),
+                const ProfileStats(),
                 const Expanded(child: ProfileTabs()),
               ],
             ),
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stack) => Center(
-          child: Text('Error loading profile: $error'),
+        loading: () => const LoadingView(),
+        error: (error, stack) => ErrorView(
+          message: 'Could not load your profile.\n$error',
+          onRetry: () => ref.invalidate(userProfileProvider),
         ),
       ),
     );

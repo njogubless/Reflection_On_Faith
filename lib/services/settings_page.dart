@@ -1,3 +1,5 @@
+import 'package:devotion/core/common/widgets/state_views.dart';
+import 'package:devotion/features/auth/controller/auth_controller.dart';
 import 'package:devotion/theme/theme_notifier.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -16,7 +18,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   String _selectedLanguage = 'English';
 
   late SharedPreferences _prefs;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
   bool _isLoading = true;
 
   final List<String> _supportedLanguages = [
@@ -88,18 +89,32 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     final ctx = context;
     final scaffoldMessenger = ScaffoldMessenger.of(ctx);
     try {
-      await _auth.signOut();
-
-      if (!ctx.mounted) return;
-      Navigator.of(ctx).pushReplacementNamed('/login');
+      // Same path AdminDashboard/AppDrawer use — clears the cached
+      // userProvider state and resets the nav stack, instead of signing out
+      // of Firebase directly and leaving stale cached user data around.
+      await ref.read(authControllerProvider.notifier).signOut(ctx);
     } catch (e) {
+      if (!ctx.mounted) return;
       scaffoldMessenger.showSnackBar(
         SnackBar(
-          content: Text('Error signing out: ${e.toString()}'),
-          backgroundColor: Colors.red,
+          content: const Text('Could not sign out. Please try again.'),
+          backgroundColor: Theme.of(ctx).colorScheme.error,
         ),
       );
     }
+  }
+
+  Widget _sectionHeader(BuildContext context, String title) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      child: Text(
+        title,
+        style: Theme.of(context)
+            .textTheme
+            .titleMedium
+            ?.copyWith(fontWeight: FontWeight.bold),
+      ),
+    );
   }
 
   @override
@@ -107,12 +122,10 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     final themeState = ref.watch(themeProvider);
     _darkModeEnabled = themeState.isDarkMode;
     if (_isLoading) {
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
+      return const Scaffold(body: LoadingView());
     }
+
+    final errorColor = Theme.of(context).colorScheme.error;
 
     return Scaffold(
       appBar: AppBar(
@@ -126,21 +139,11 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       ),
       body: ListView(
         children: [
-          const Padding(
-            padding: EdgeInsets.all(16.0),
-            child: Text(
-              'Preferences',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
+          _sectionHeader(context, 'Preferences'),
           Card(
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Column(
               children: [
-                const Divider(),
                 SwitchListTile(
                   title: const Text('Dark Mode'),
                   subtitle: const Text('Toggle dark/light theme'),
@@ -148,13 +151,14 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                   onChanged: _handleDarkModeChange,
                   secondary: const Icon(Icons.dark_mode),
                 ),
-                const Divider(),
+                const Divider(height: 1),
                 ListTile(
                   leading: const Icon(Icons.language),
                   title: const Text('Language'),
                   subtitle: Text(_selectedLanguage),
                   trailing: DropdownButton<String>(
                     value: _selectedLanguage,
+                    underline: const SizedBox.shrink(),
                     items: _supportedLanguages.map((String language) {
                       return DropdownMenuItem<String>(
                         value: language,
@@ -167,29 +171,14 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               ],
             ),
           ),
-          const Padding(
-            padding: EdgeInsets.all(16.0),
-            child: Text(
-              'Account',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
+          _sectionHeader(context, 'Account'),
           Card(
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Column(
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.logout, color: Colors.red),
-                  title: const Text(
-                    'Sign Out',
-                    style: TextStyle(color: Colors.red),
-                  ),
-                  onTap: _signOut,
-                ),
-              ],
+            child: ListTile(
+              leading: Icon(Icons.logout, color: errorColor),
+              title: Text('Sign Out', style: TextStyle(color: errorColor)),
+              subtitle: const Text('You can sign back in any time'),
+              onTap: _signOut,
             ),
           ),
           const SizedBox(height: 24),

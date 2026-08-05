@@ -1,6 +1,20 @@
+import 'package:devotion/core/common/widgets/state_views.dart';
+import 'package:devotion/features/articles/presentation/providers/article_provider.dart';
+import 'package:devotion/features/articles/presentation/screens/article_detail_screen.dart';
+import 'package:devotion/features/audio/data/models/audio_model.dart';
+import 'package:devotion/features/audio/presentation/providers/audio_provider.dart';
+import 'package:devotion/features/audio/presentation/screens/audio_player_page.dart';
+import 'package:devotion/services/bookmark_provider.dart';
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
+/// This used to be three tabs of entirely hardcoded fake data ("My Playlist
+/// 1", "Recently Played Track 1" by "Artist 1", ...) with `onTap: () {}` —
+/// nothing here was ever real. Replaced with two tabs backed by data this
+/// app actually has: the sermons the user has recorded themselves
+/// (including pending/rejected ones, so they can see their review status),
+/// and their bookmarked articles.
 class ProfileTabs extends StatefulWidget {
   const ProfileTabs({super.key});
 
@@ -15,7 +29,7 @@ class _ProfileTabsState extends State<ProfileTabs>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 2, vsync: this);
   }
 
   @override
@@ -26,157 +40,172 @@ class _ProfileTabsState extends State<ProfileTabs>
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Column(
       children: [
         TabBar(
           controller: _tabController,
-          labelColor: Theme.of(context).primaryColor,
-          unselectedLabelColor: Colors.grey,
+          labelColor: theme.colorScheme.primary,
+          unselectedLabelColor: theme.colorScheme.onSurfaceVariant,
           tabs: const [
-            Tab(text: 'My Playlists'),
-            Tab(text: 'Recently Played'),
-            Tab(text: 'Favorites'),
+            Tab(text: 'My Sermons'),
+            Tab(text: 'Bookmarks'),
           ],
         ),
         Expanded(
           child: TabBarView(
             controller: _tabController,
-            children: [
-              _buildPlaylistsTab(),
-              _buildRecentlyPlayedTab(),
-              _buildFavoritesTab(),
+            children: const [
+              _MySermonsTab(),
+              _BookmarksTab(),
             ],
           ),
         ),
       ],
     );
   }
+}
 
-  Widget _buildPlaylistsTab() {
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: 3,
-      itemBuilder: (context, index) {
-        return _buildPlaylistItem(
-          title: 'My Playlist ${index + 1}',
-          description: '${(index + 3) * 2} tracks',
-          imageUrl: null,
+class _MySermonsTab extends ConsumerWidget {
+  const _MySermonsTab();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final recordingsAsync = ref.watch(myRecordingsProvider);
+
+    return recordingsAsync.when(
+      loading: () => const LoadingView(),
+      error: (e, _) => ErrorView(
+        message: 'Could not load your sermons.\n$e',
+        onRetry: () => ref.invalidate(myRecordingsProvider),
+      ),
+      data: (recordings) {
+        if (recordings.isEmpty) {
+          return const EmptyView(
+            icon: Icons.mic_none,
+            title: 'No sermons recorded yet',
+            subtitle: 'Sermons you record from the Sermons tab will show up here.',
+          );
+        }
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: recordings.length,
+          itemBuilder: (context, index) =>
+              _RecordingTile(recording: recordings[index]),
         );
       },
     );
   }
+}
 
-  Widget _buildRecentlyPlayedTab() {
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: 5,
-      itemBuilder: (context, index) {
-        return _buildTrackItem(
-          title: 'Recently Played Track ${index + 1}',
-          artist: 'Artist ${index + 1}',
-          imageUrl: null,
-          playedAt: DateTime.now().subtract(Duration(hours: index)),
-        );
-      },
-    );
-  }
+class _RecordingTile extends StatelessWidget {
+  final AudioFile recording;
 
-  Widget _buildFavoritesTab() {
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: 5,
-      itemBuilder: (context, index) {
-        return _buildTrackItem(
-          title: 'Favorite Track ${index + 1}',
-          artist: 'Artist ${index + 1}',
-          imageUrl: null,
-        );
-      },
-    );
-  }
+  const _RecordingTile({required this.recording});
 
-  Widget _buildPlaylistItem({
-    required String title,
-    required String description,
-    String? imageUrl,
-  }) {
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final statusColor = switch (recording.approvalStatus) {
+      'approved' => Colors.green,
+      'rejected' => Colors.red,
+      _ => Colors.orange,
+    };
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
         contentPadding: const EdgeInsets.all(12),
-        leading: Container(
-          width: 60,
-          height: 60,
+        leading: CircleAvatar(
+          backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
+          child: Icon(Icons.mic, color: theme.colorScheme.primary),
+        ),
+        title: Text(recording.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+        subtitle: Text(DateFormat('MMM d, yyyy').format(recording.uploadDate)),
+        trailing: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
           decoration: BoxDecoration(
-            color: Colors.grey[300],
-            borderRadius: BorderRadius.circular(8),
+            color: statusColor.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(20),
           ),
-          child: imageUrl != null
-              ? ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: CachedNetworkImage(
-                    imageUrl: imageUrl,
-                    fit: BoxFit.cover,
-                    placeholder: (context, url) => const Icon(Icons.music_note),
-                    errorWidget: (context, url, error) =>
-                        const Icon(Icons.music_note),
+          child: Text(
+            recording.approvalStatus.toUpperCase(),
+            style: TextStyle(
+              color: statusColor,
+              fontWeight: FontWeight.bold,
+              fontSize: 11,
+            ),
+          ),
+        ),
+        onTap: recording.approvalStatus == 'approved'
+            ? () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => AudioPlayerPage(audioFile: recording),
                   ),
                 )
-              : const Icon(Icons.music_note, size: 30),
-        ),
-        title: Text(title),
-        subtitle: Text(description),
-        trailing: const Icon(Icons.play_circle_filled),
-        onTap: () {},
+            : null,
       ),
     );
   }
+}
 
-  Widget _buildTrackItem({
-    required String title,
-    required String artist,
-    String? imageUrl,
-    DateTime? playedAt,
-  }) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        leading: Container(
-          width: 50,
-          height: 50,
-          decoration: BoxDecoration(
-            color: Colors.grey[300],
-            borderRadius: BorderRadius.circular(4),
-          ),
-          child: imageUrl != null
-              ? ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: CachedNetworkImage(
-                    imageUrl: imageUrl,
-                    fit: BoxFit.cover,
-                    placeholder: (context, url) => const Icon(Icons.music_note),
-                    errorWidget: (context, url, error) =>
-                        const Icon(Icons.music_note),
-                  ),
-                )
-              : const Icon(Icons.music_note),
-        ),
-        title: Text(title),
-        subtitle: Text(artist),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (playedAt != null)
-              Text(
-                '${playedAt.hour}:${playedAt.minute.toString().padLeft(2, '0')}',
-                style: TextStyle(color: Colors.grey[600], fontSize: 12),
-              ),
-            const SizedBox(width: 8),
-            const Icon(Icons.more_vert),
-          ],
-        ),
-        onTap: () {},
+class _BookmarksTab extends ConsumerWidget {
+  const _BookmarksTab();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final bookmarkedIds = ref.watch(bookmarkedArticlesProvider);
+    final articlesAsync = ref.watch(articleStreamProvider);
+
+    return articlesAsync.when(
+      loading: () => const LoadingView(),
+      error: (e, _) => ErrorView(
+        message: 'Could not load bookmarks.\n$e',
+        onRetry: () => ref.invalidate(articleStreamProvider),
       ),
+      data: (articles) {
+        final bookmarked =
+            articles.where((a) => bookmarkedIds.contains(a.id)).toList();
+        if (bookmarked.isEmpty) {
+          return const EmptyView(
+            icon: Icons.bookmark_border,
+            title: 'No bookmarks yet',
+            subtitle: 'Tap the bookmark icon on an article to save it here.',
+          );
+        }
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: bookmarked.length,
+          itemBuilder: (context, index) {
+            final article = bookmarked[index];
+            return Card(
+              margin: const EdgeInsets.only(bottom: 12),
+              child: ListTile(
+                contentPadding: const EdgeInsets.all(12),
+                leading: CircleAvatar(
+                  backgroundColor:
+                      Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+                  child: Icon(Icons.article, color: Theme.of(context).colorScheme.primary),
+                ),
+                title: Text(article.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+                subtitle: Text(DateFormat('MMM d, yyyy').format(article.createdAt)),
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ArticleDetailScreen(
+                      articleId: article.id,
+                      title: article.title,
+                      content: article.content,
+                      isPublished: article.isPublished,
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

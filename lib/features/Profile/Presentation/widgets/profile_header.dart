@@ -77,11 +77,12 @@ class ProfileHeader extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isLoading = ref.watch(isProfileLoadingProvider);
+    final theme = Theme.of(context);
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
+        color: theme.colorScheme.primary.withValues(alpha: 0.08),
       ),
       child: Column(
         children: [
@@ -92,7 +93,7 @@ class ProfileHeader extends ConsumerWidget {
               children: [
                 CircleAvatar(
                   radius: 50,
-                  backgroundColor: Colors.grey[300],
+                  backgroundColor: theme.colorScheme.surfaceContainerHighest,
                   child: isLoading
                       ? const CircularProgressIndicator()
                       : ClipOval(
@@ -102,23 +103,25 @@ class ProfileHeader extends ConsumerWidget {
                                   placeholder: (context, url) =>
                                       const CircularProgressIndicator(),
                                   errorWidget: (context, url, error) =>
-                                      const Icon(Icons.person, size: 60),
+                                      Icon(Icons.person,
+                                          size: 60, color: theme.colorScheme.onSurfaceVariant),
                                   width: 100,
                                   height: 100,
                                   fit: BoxFit.cover,
                                 )
-                              : const Icon(Icons.person, size: 60),
+                              : Icon(Icons.person,
+                                  size: 60, color: theme.colorScheme.onSurfaceVariant),
                         ),
                 ),
                 Container(
                   padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).primaryColor,
+                    color: theme.colorScheme.primary,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.camera_alt,
-                    color: Colors.white,
+                    color: theme.colorScheme.onPrimary,
                     size: 20,
                   ),
                 ),
@@ -128,25 +131,20 @@ class ProfileHeader extends ConsumerWidget {
           const SizedBox(height: 12),
           Text(
             profile.displayName,
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            ),
+            style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 4),
           Text(
             profile.email,
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.grey[600],
-            ),
+            style: theme.textTheme.bodyMedium
+                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
           ),
           if (profile.bio != null && profile.bio!.isNotEmpty) ...[
             const SizedBox(height: 12),
             Text(
               profile.bio!,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 16),
+              style: theme.textTheme.bodyLarge,
             ),
           ],
           if (profile.favoriteGenres.isNotEmpty) ...[
@@ -156,12 +154,7 @@ class ProfileHeader extends ConsumerWidget {
               runSpacing: 8,
               alignment: WrapAlignment.center,
               children: profile.favoriteGenres
-                  .map((genre) => Chip(
-                        label: Text(genre),
-                        backgroundColor: Theme.of(context)
-                            .primaryColor
-                            .withValues(alpha: 0.2),
-                      ))
+                  .map((genre) => Chip(label: Text(genre)))
                   .toList(),
             ),
           ],
