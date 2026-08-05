@@ -6,38 +6,16 @@ import 'package:devotion/features/Q&A/domain/usecases/get_questions.dart';
 import 'package:devotion/features/Q&A/domain/usecases/submit_question.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class QuestionNotifier extends Notifier<List<Question>> {
-  @override
-  List<Question> build() {
-    // Kick off initial fetch after the first frame.
-    Future.microtask(fetchQuestions);
-    return [];
-  }
-
-  Future<void> submitQuestion(Question question) async {
-    await ref.read(submitQuestionUseCaseProvider).execute(question);
-    await fetchQuestions();
-  }
-
-  Future<void> fetchQuestions() async {
-    state = await ref.read(getQuestionsUseCaseProvider).execute();
-  }
-
-  Future<void> answerQuestion(String questionId, String answerText) async {
-    await ref
-        .read(answerQuestionUseCaseProvider)
-        .execute(questionId, answerText);
-    await fetchQuestions();
-  }
-}
-
-final questionProvider = NotifierProvider<QuestionNotifier, List<Question>>(
-  QuestionNotifier.new,
-);
-
 final questionRepositoryProvider = Provider<QuestionRepositoryImpl>((ref) {
   final firestore = FirebaseFirestore.instance;
   return QuestionRepositoryImpl(firestore);
+});
+
+/// Live-updating question list (newest first), used by both the public Q&A
+/// screen and the admin answer queue so answers/new questions from other
+/// sessions show up without a manual refresh.
+final questionsStreamProvider = StreamProvider<List<Question>>((ref) {
+  return ref.watch(questionRepositoryProvider).watchQuestions();
 });
 
 final submitQuestionUseCaseProvider = Provider<SubmitQuestionUseCase>(
