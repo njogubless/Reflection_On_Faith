@@ -71,7 +71,9 @@ class AudioTile extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Uploaded on $formattedDate',
+                    audioFile.minister.isNotEmpty
+                        ? '${audioFile.minister} · $formattedDate'
+                        : 'Uploaded on $formattedDate',
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.grey[600],
