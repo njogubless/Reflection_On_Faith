@@ -1,5 +1,7 @@
+import 'package:devotion/core/common/widgets/state_views.dart';
 import 'package:devotion/features/audio/presentation/providers/audio_player_provider.dart';
-import 'package:devotion/features/audio/presentation/providers/audio_repository_provider.dart';
+import 'package:devotion/features/audio/presentation/providers/audio_provider.dart';
+import 'package:devotion/features/audio/presentation/screens/audio_recording_page.dart';
 import 'package:devotion/features/audio/presentation/widgets/audio_tile.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -28,15 +30,23 @@ class _AudioScreenState extends ConsumerState<AudioScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Audio Library'),
+        title: const Text('Sermons'),
         backgroundColor: Theme.of(context).primaryColor,
         foregroundColor: Colors.white,
         elevation: 2,
         actions: [
           IconButton(
+            icon: const Icon(Icons.mic),
+            tooltip: 'Record a sermon',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const RecordAudioPage()),
+            ),
+          ),
+          IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: () => ref.read(audioProvider.notifier).refresh(),
-            tooltip: 'Refresh audio files',
+            onPressed: () => ref.invalidate(audioProvider),
+            tooltip: 'Refresh sermons',
           ),
         ],
       ),
@@ -142,7 +152,7 @@ class _AudioScreenState extends ConsumerState<AudioScreen> {
                 }
 
                 return RefreshIndicator(
-                  onRefresh: () => ref.read(audioProvider.notifier).refresh(),
+                  onRefresh: () async => ref.invalidate(audioProvider),
                   child: ListView.separated(
                     padding: EdgeInsets.only(
                       top: 8,
@@ -187,134 +197,38 @@ class _AudioScreenState extends ConsumerState<AudioScreen> {
     required bool showRefresh,
     Widget? extraWidget,
   }) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              size: 80,
-              color: Colors.grey[400],
-            ),
-            const SizedBox(height: 24),
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              subtitle,
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey[600],
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-            if (showRefresh)
-              ElevatedButton.icon(
-                icon: const Icon(Icons.refresh),
-                label: const Text('Refresh'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).primaryColor,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 12,
+    return EmptyView(
+      icon: icon,
+      title: title,
+      subtitle: subtitle,
+      action: showRefresh || extraWidget != null
+          ? Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (showRefresh)
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Refresh'),
+                    onPressed: () => ref.invalidate(audioProvider),
                   ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                onPressed: () => ref.read(audioProvider.notifier).refresh(),
-              ),
-            if (extraWidget != null) ...[
-              const SizedBox(height: 12),
-              extraWidget,
-            ],
-          ],
-        ),
-      ),
+                if (extraWidget != null) ...[
+                  const SizedBox(height: 12),
+                  extraWidget,
+                ],
+              ],
+            )
+          : null,
     );
   }
 
   Widget _buildLoadingState() {
-    return const Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          CircularProgressIndicator(),
-          SizedBox(height: 16),
-          Text(
-            'Loading audio files...',
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.grey,
-            ),
-          ),
-        ],
-      ),
-    );
+    return const LoadingView(message: 'Loading sermons...');
   }
 
   Widget _buildErrorState(Object error) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.error_outline,
-              size: 80,
-              color: Colors.red[300],
-            ),
-            const SizedBox(height: 24),
-            const Text(
-              'Failed to Load Audio Files',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Error: ${error.toString()}',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[600],
-              ),
-              textAlign: TextAlign.center,
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              icon: const Icon(Icons.refresh),
-              label: const Text('Try Again'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Theme.of(context).primaryColor,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 12,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              onPressed: () => ref.read(audioProvider.notifier).refresh(),
-            ),
-          ],
-        ),
-      ),
+    return ErrorView(
+      message: 'Could not load sermons.\n$error',
+      onRetry: () => ref.invalidate(audioProvider),
     );
   }
 

@@ -1,13 +1,11 @@
 import 'package:devotion/core/providers/audio_screen.dart';
 import 'package:devotion/features/Q&A/presentation/screens/question_page.dart';
 import 'package:devotion/features/articles/presentation/screens/article_screen.dart';
-import 'package:devotion/features/audio/presentation/screens/audio_list_page.dart';
 import 'package:devotion/features/auth/presentation/screen/home_screen.dart';
 import 'package:devotion/features/books/presentation/screen/book_screen.dart';
 import 'package:devotion/widget/app_drawer.dart';
 import 'package:devotion/widget/custom_App_Bar.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 class MainLayout extends StatefulWidget {
   const MainLayout({super.key});
@@ -25,10 +23,13 @@ class _MainLayoutState extends State<MainLayout> with TickerProviderStateMixin {
 
   int _unreadArticlesCount = 1;
 
+  // NOTE: "Audio" and "Devotion" used to be two separate tabs backed by two
+  // different (and inconsistent) Firestore queries — a sermon approved
+  // in-app would show on one but not the other. There's one "Sermons" tab
+  // now, backed by the single merged `audioProvider` stream.
   final List<String> _titles = [
     'Home',
-    'Audio',
-    'Devotion',
+    'Sermons',
     'Articles',
     'Books',
     'Q&A',
@@ -36,12 +37,13 @@ class _MainLayoutState extends State<MainLayout> with TickerProviderStateMixin {
 
   final List<IconData> _icons = [
     Icons.home_rounded,
-    Icons.audiotrack_rounded,
     Icons.mic_rounded,
     Icons.article_rounded,
     Icons.book_rounded,
     Icons.question_answer_rounded,
   ];
+
+  late final int _articlesIndex = _titles.indexOf('Articles');
 
   @override
   void initState() {
@@ -50,7 +52,6 @@ class _MainLayoutState extends State<MainLayout> with TickerProviderStateMixin {
     _screens = [
       const HomeScreen(),
       AudioScreen(),
-      const DevotionPage(),
       ArticlePage(),
       BookScreen(),
       const QuestionPage(),
@@ -83,7 +84,7 @@ class _MainLayoutState extends State<MainLayout> with TickerProviderStateMixin {
     setState(() {
       _selectedIndex = index;
 
-      if (index == 3) {
+      if (index == _articlesIndex) {
         _unreadArticlesCount = 0;
       }
 
@@ -101,22 +102,18 @@ class _MainLayoutState extends State<MainLayout> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
       drawer: AppDrawer(),
-      appBar: CustomAppBar(
-        // FIX #7: Title reflects the active tab.
-        title: _titles[_selectedIndex],
-        screens: _screens,
-        selectedIndex: _selectedIndex,
-      ),
+      appBar: CustomAppBar(title: _titles[_selectedIndex]),
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              const Color.fromARGB(255, 104, 165, 214).withValues(alpha: 0.1),
-              Colors.white,
+              theme.colorScheme.primary.withValues(alpha: 0.08),
+              theme.scaffoldBackgroundColor,
             ],
           ),
         ),
@@ -147,21 +144,15 @@ class _MainLayoutState extends State<MainLayout> with TickerProviderStateMixin {
           child: BottomNavigationBar(
             currentIndex: _selectedIndex,
             onTap: _onItemTapped,
-            type: BottomNavigationBarType.fixed,
-            backgroundColor: Colors.white,
-            elevation: 0,
+            // Colors/type/elevation come from AppTheme's
+            // bottomNavigationBarTheme now — no more hardcoded brand-color
+            // literal duplicated here.
             items: List.generate(_screens.length, _buildNavItem),
-            selectedItemColor: const Color.fromARGB(255, 82, 169, 240),
-            unselectedItemColor: Colors.grey,
             showUnselectedLabels: true,
-            selectedLabelStyle: GoogleFonts.poppins(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
-            unselectedLabelStyle: GoogleFonts.poppins(
-              fontSize: 12,
-              fontWeight: FontWeight.w400,
-            ),
+            selectedLabelStyle:
+                theme.textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w600),
+            unselectedLabelStyle:
+                theme.textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w400),
           ),
         ),
       ),
@@ -169,8 +160,7 @@ class _MainLayoutState extends State<MainLayout> with TickerProviderStateMixin {
   }
 
   BottomNavigationBarItem _buildNavItem(int index) {
-    // FIX #1: Badge driven by _unreadArticlesCount state, not a hardcoded '1'.
-    final bool showBadge = index == 3 && _unreadArticlesCount > 0;
+    final bool showBadge = index == _articlesIndex && _unreadArticlesCount > 0;
 
     return BottomNavigationBarItem(
       icon: ScaleTransition(

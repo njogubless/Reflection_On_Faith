@@ -2,7 +2,6 @@ import 'package:devotion/core/common/navigation/main_layout.dart';
 import 'package:devotion/core/providers/audio_screen.dart';
 import 'package:devotion/features/Q&A/presentation/screens/question_page.dart';
 import 'package:devotion/features/articles/presentation/screens/article_screen.dart';
-import 'package:devotion/features/audio/presentation/screens/audio_list_page.dart';
 import 'package:devotion/features/auth/presentation/screen/home_screen.dart';
 import 'package:devotion/features/auth/presentation/screen/login_screen.dart';
 import 'package:devotion/features/auth/presentation/screen/sign_up.dart';
@@ -23,7 +22,10 @@ final loggedInRoute = RouteMap(
     '/': (_) => MaterialPage(child: MainLayout()),
     '/home': (_) => const MaterialPage(child: HomeScreen()),
     '/audio': (_) => const MaterialPage(child: AudioScreen()),
-    '/devotion': (_) => const MaterialPage(child: DevotionPage()),
+    // Kept as an alias to avoid breaking anything that still deep-links to
+    // the old route name — the "Audio" and "Devotion" tabs used to be two
+    // separate (and inconsistent) sermon lists; they're now one screen.
+    '/devotion': (_) => const MaterialPage(child: AudioScreen()),
     '/articles': (_) => MaterialPage(child: ArticlePage()),
     '/books': (_) => MaterialPage(child: BookScreen()),
     '/questions': (_) => const MaterialPage(child: QuestionPage()),
