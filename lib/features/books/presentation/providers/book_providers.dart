@@ -8,8 +8,8 @@ import 'package:flutter/foundation.dart';
 // Provider for books from Firestore
 final booksProvider = StreamProvider<List<BookModel>>((ref) {
   return FirebaseFirestore.instance
-      .collection(
-          FirebaseConstants.testimonyCollection) // or your book collection
+      .collection(FirebaseConstants.testimonyCollection)
+      .limit(200) // see kDefaultQueryLimit in article_provider.dart
       .snapshots()
       .map((snapshot) {
     final books = <BookModel>[];
