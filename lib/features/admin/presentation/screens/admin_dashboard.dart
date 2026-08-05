@@ -1,20 +1,22 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:devotion/features/admin/presentation/screens/Adminquestionscreen.dart';
 import 'package:devotion/features/admin/presentation/screens/file_management_screen.dart';
 import 'package:devotion/features/admin/presentation/screens/upload_files.dart';
 import 'package:devotion/features/articles/presentation/screens/aricle_management_screen.dart';
 import 'package:devotion/features/audio/presentation/screens/recording_approval.dart';
-import 'package:devotion/features/auth/presentation/screen/home_screen.dart';
+import 'package:devotion/features/auth/controller/auth_controller.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:devotion/core/constants/firebase_constants.dart';
 
-class AdminDashboard extends StatefulWidget {
+class AdminDashboard extends ConsumerStatefulWidget {
   const AdminDashboard({super.key});
 
   @override
-  State<AdminDashboard> createState() => _AdminDashboardState();
+  ConsumerState<AdminDashboard> createState() => _AdminDashboardState();
 }
 
-class _AdminDashboardState extends State<AdminDashboard> {
+class _AdminDashboardState extends ConsumerState<AdminDashboard> {
   bool _isUploading = false;
 
   Future<void> uploadFile(
@@ -22,7 +24,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
     setState(() => _isUploading = true);
     try {
-      await UploadFiles.uploadFileToFirebase(collectionPath, firebasePath);
+      final didUpload =
+          await UploadFiles.uploadFileToFirebase(collectionPath, firebasePath);
+
+      if (!didUpload) return; // user cancelled the file picker — not an error
+
       scaffoldMessenger.showSnackBar(
         const SnackBar(content: Text('File uploaded successfully!')),
       );
@@ -34,17 +40,50 @@ class _AdminDashboardState extends State<AdminDashboard> {
           builder: (context) => SplitFileManagementScreen(),
         ),
       );
+    } on UploadValidationException catch (e) {
+      scaffoldMessenger.showSnackBar(SnackBar(content: Text(e.message)));
     } catch (e) {
       scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text('Error uploading file: $e')),
+        const SnackBar(content: Text('Upload failed. Please try again.')),
       );
     } finally {
-      setState(() => _isUploading = false);
+      if (mounted) setState(() => _isUploading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    // Defense in depth: AdminLoginPage already checks `isAdmin` before
+    // pushing this screen, but that's a one-time check at login time. This
+    // re-checks the live value every rebuild, so a revoked admin doesn't
+    // keep dashboard access just because the screen is still on the nav
+    // stack from earlier in the session. The real access boundary is
+    // firestore.rules (client-side checks here are only ever a UX guard).
+    final isAdmin = ref.watch(userProvider)?.isAdmin ?? false;
+    if (!isAdmin) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Admin Dashboard')),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.lock_outline, size: 48, color: Colors.grey),
+                const SizedBox(height: 16),
+                const Text('You no longer have admin access.'),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Go back'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         elevation: 0,
@@ -56,10 +95,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const HomeScreen()),
-            ),
+            onPressed: () =>
+                ref.read(authControllerProvider.notifier).signOut(context),
             tooltip: 'Logout',
           ),
         ],
@@ -126,7 +163,17 @@ class _AdminDashboardState extends State<AdminDashboard> {
               ),
             ),
             const Spacer(),
-            _buildStatsCard('Today\'s Uploads', '12'),
+            StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection(FirebaseConstants.devotionCollection)
+                  .where('approvalStatus', isEqualTo: 'pending')
+                  .snapshots(),
+              builder: (context, snapshot) {
+                final count = snapshot.data?.docs.length;
+                return _buildStatsCard(
+                    'Pending Reviews', count?.toString() ?? '–');
+              },
+            ),
           ],
         ),
         const SizedBox(height: 8),
@@ -290,11 +337,5 @@ class _AdminDashboardState extends State<AdminDashboard> {
         ),
       ),
     );
-  }
-}
-
-extension StringExtension on String {
-  String capitalize() {
-    return "${this[0].toUpperCase()}${substring(1)}";
   }
 }

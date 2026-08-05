@@ -13,12 +13,13 @@ class _WriteArticleScreenState extends State<WriteArticleScreen> {
   final _titleController = TextEditingController();
   final _contentController = TextEditingController();
   bool _publishImmediately = false;
+  bool _isSubmitting = false;
 
-  Future<int> _getArticleCount() async {
-    final snapshot = await FirebaseFirestore.instance
-        .collection(FirebaseConstants.articleCollection)
-        .get();
-    return snapshot.docs.length;
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _contentController.dispose();
+    super.dispose();
   }
 
   Future<void> _submitArticle() async {
@@ -41,11 +42,16 @@ class _WriteArticleScreenState extends State<WriteArticleScreen> {
       return;
     }
 
+    setState(() => _isSubmitting = true);
     try {
-      final articleCount = await _getArticleCount();
       final today = DateTime.now().toLocal();
       final formattedDate = '${today.day}/${today.month}/${today.year}';
 
+      // NOTE: this used to also read the entire article collection just to
+      // compute a cosmetic `articleNumber` (a full collection scan on every
+      // single submission, cost growing with total article count forever).
+      // That field wasn't displayed anywhere, so it's dropped instead of
+      // fixed — ordering already comes from `timestamp`.
       await FirebaseFirestore.instance
           .collection(FirebaseConstants.articleCollection)
           .add({
@@ -54,9 +60,9 @@ class _WriteArticleScreenState extends State<WriteArticleScreen> {
         'timestamp': FieldValue.serverTimestamp(),
         'isPublished': _publishImmediately,
         'createdAt': formattedDate,
-        'articleNumber': articleCount + 1,
       });
 
+      if (!ctx.mounted) return;
       scaffoldMessenger.showSnackBar(
         SnackBar(
           content: Text(_publishImmediately
@@ -66,12 +72,13 @@ class _WriteArticleScreenState extends State<WriteArticleScreen> {
         ),
       );
 
-      if (!ctx.mounted) return;
       Navigator.pop(ctx);
     } catch (e) {
       scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text('Error submitting article: $e')),
+        const SnackBar(content: Text('Could not save the article. Please try again.')),
       );
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
     }
   }
 
@@ -121,12 +128,19 @@ class _WriteArticleScreenState extends State<WriteArticleScreen> {
             ),
             const SizedBox(height: 16),
             ElevatedButton(
-              onPressed: _submitArticle,
+              onPressed: _isSubmitting ? null : _submitArticle,
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
               ),
-              child: Text(
-                  _publishImmediately ? 'Publish Article' : 'Save as Draft'),
+              child: _isSubmitting
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Text(_publishImmediately
+                      ? 'Publish Article'
+                      : 'Save as Draft'),
             ),
           ],
         ),

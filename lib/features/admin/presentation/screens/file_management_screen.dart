@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:devotion/core/constants/firebase_constants.dart';
 
-class SplitFileManagementScreen extends StatelessWidget {
+class SplitFileManagementScreen extends StatefulWidget {
   final String audioCollectionPath;
   final String bookCollectionPath;
 
@@ -12,6 +12,27 @@ class SplitFileManagementScreen extends StatelessWidget {
     this.audioCollectionPath = FirebaseConstants.sermonCollection,
     this.bookCollectionPath = FirebaseConstants.testimonyCollection,
   });
+
+  @override
+  State<SplitFileManagementScreen> createState() =>
+      _SplitFileManagementScreenState();
+}
+
+class _SplitFileManagementScreenState
+    extends State<SplitFileManagementScreen> {
+  // Created once instead of inline in StreamBuilder.stream, which would
+  // otherwise open a fresh Firestore listener (and drop any buffered state)
+  // on every rebuild of this screen.
+  late final Stream<QuerySnapshot<Map<String, dynamic>>> _audioStream =
+      FirebaseFirestore.instance
+          .collection(widget.audioCollectionPath)
+          .limit(200)
+          .snapshots();
+  late final Stream<QuerySnapshot<Map<String, dynamic>>> _bookStream =
+      FirebaseFirestore.instance
+          .collection(widget.bookCollectionPath)
+          .limit(200)
+          .snapshots();
 
   @override
   Widget build(BuildContext context) {
@@ -52,7 +73,8 @@ class SplitFileManagementScreen extends StatelessWidget {
                 ),
                 Expanded(
                   child: _buildFileSection(
-                    collectionPath: audioCollectionPath,
+                    stream: _audioStream,
+                    collectionPath: widget.audioCollectionPath,
                     fileType: 'audio',
                     emptyMessage: 'No audio files uploaded yet',
                   ),
@@ -96,7 +118,8 @@ class SplitFileManagementScreen extends StatelessWidget {
                 ),
                 Expanded(
                   child: _buildFileSection(
-                    collectionPath: bookCollectionPath,
+                    stream: _bookStream,
+                    collectionPath: widget.bookCollectionPath,
                     fileType: 'book',
                     emptyMessage: 'No book files uploaded yet',
                   ),
@@ -110,12 +133,13 @@ class SplitFileManagementScreen extends StatelessWidget {
   }
 
   Widget _buildFileSection({
+    required Stream<QuerySnapshot<Map<String, dynamic>>> stream,
     required String collectionPath,
     required String fileType,
     required String emptyMessage,
   }) {
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance.collection(collectionPath).snapshots(),
+      stream: stream,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return Center(
@@ -362,7 +386,7 @@ class SplitFileManagementScreen extends StatelessWidget {
       );
     } catch (e) {
       scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text('Error deleting file: $e')),
+        const SnackBar(content: Text('Could not delete the file. Please try again.')),
       );
     }
   }
