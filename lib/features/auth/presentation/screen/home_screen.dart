@@ -1,11 +1,15 @@
+import 'package:devotion/features/Q&A/domain/entities/question.dart';
+import 'package:devotion/features/Q&A/presentation/providers/question_provider.dart';
 import 'package:devotion/features/Q&A/presentation/screens/question_page.dart';
+import 'package:devotion/features/articles/data/models/article_model.dart';
+import 'package:devotion/features/articles/presentation/providers/article_provider.dart';
 import 'package:devotion/features/articles/presentation/screens/article_detail_screen.dart';
+import 'package:devotion/core/providers/audio_screen.dart';
 import 'package:devotion/features/audio/data/models/audio_model.dart';
-import 'package:devotion/features/audio/presentation/screens/audio_list_page.dart';
+import 'package:devotion/features/audio/presentation/providers/audio_provider.dart';
 import 'package:devotion/features/audio/presentation/screens/audio_player_page.dart';
 import 'package:devotion/features/auth/controller/auth_controller.dart';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -21,11 +25,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
 
-  // Streams cached as instance variables so they are created only once,
-  // not on every build call.
-  late final Stream<List<AudioFile>> _latestAudiosStream;
-  late final Stream<List<Map<String, dynamic>>> _latestArticlesStream;
-  late final Stream<List<Map<String, dynamic>>> _latestQuestionsStream;
+  // "Latest audio/articles/questions" all read from the same shared
+  // Riverpod providers the rest of the app uses (watched in build()) instead
+  // of separate hand-rolled Firestore queries here. That used to mean three
+  // different bugs: `Sermons` ordered by a `createdAt` field no document
+  // has (silently always empty), articles with no `isPublished` filter
+  // (drafts visible before publish), and questions rendered from a `title`
+  // field that submission never wrote (always showed "Untitled Question").
 
   @override
   void initState() {
@@ -43,31 +49,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     );
 
     _animationController.forward();
-
-    _latestAudiosStream = FirebaseFirestore.instance
-        .collection('Sermons')
-        .orderBy('createdAt', descending: true)
-        .limit(3)
-        .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => AudioFile.fromJson({...doc.data(), 'id': doc.id}))
-            .toList());
-
-    _latestArticlesStream = FirebaseFirestore.instance
-        .collection('article')
-        .orderBy('timestamp', descending: true)
-        .limit(3)
-        .snapshots()
-        .map((snapshot) =>
-            snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList());
-
-    _latestQuestionsStream = FirebaseFirestore.instance
-        .collection('questions')
-        .orderBy('askedAt', descending: true)
-        .limit(3)
-        .snapshots()
-        .map((snapshot) =>
-            snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList());
   }
 
   @override
@@ -191,7 +172,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   ElevatedButton(
                     onPressed: () {
                       Navigator.push(context,
-                          MaterialPageRoute(builder: (_) => DevotionPage()));
+                          MaterialPageRoute(builder: (_) => const AudioScreen()));
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.white,
@@ -237,25 +218,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           ),
           SizedBox(
             height: 180,
-            child: StreamBuilder<List<AudioFile>>(
-              stream: _latestAudiosStream,
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  return const Center(child: Text('Error loading audios'));
+            child: ref.watch(audioProvider).when(
+              error: (e, _) => const Center(child: Text('Error loading audios')),
+              loading: () => const Center(child: CircularProgressIndicator()),
+              data: (audios) {
+                final latest = audios.take(3).toList();
+                if (latest.isEmpty) {
+                  return const Center(child: Text('No sermons yet'));
                 }
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                final audios = snapshot.data ?? [];
                 return ListView.builder(
                   padding: const EdgeInsets.symmetric(horizontal: 15),
                   scrollDirection: Axis.horizontal,
-                  itemCount: audios.length,
-                  itemBuilder: (context, index) {
-                    final audio = audios[index];
-                    return _buildAudioCard(audio);
-                  },
+                  itemCount: latest.length,
+                  itemBuilder: (context, index) => _buildAudioCard(latest[index]),
                 );
               },
             ),
@@ -337,25 +312,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           ),
           SizedBox(
             height: 180,
-            child: StreamBuilder<List<Map<String, dynamic>>>(
-              stream: _latestArticlesStream,
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  return const Center(child: Text('Error loading articles'));
-                }
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                final articles = snapshot.data ?? [];
+            child: ref.watch(articleStreamProvider).when(
+              error: (e, _) => const Center(child: Text('Error loading articles')),
+              loading: () => const Center(child: CircularProgressIndicator()),
+              data: (articles) {
+                final latest = articles.take(3).toList();
                 return ListView.builder(
                   padding: const EdgeInsets.symmetric(horizontal: 15),
                   scrollDirection: Axis.horizontal,
-                  itemCount: articles.length,
-                  itemBuilder: (context, index) {
-                    final article = articles[index];
-                    return _buildArticleCard(article);
-                  },
+                  itemCount: latest.length,
+                  itemBuilder: (context, index) => _buildArticleCard(latest[index]),
                 );
               },
             ),
@@ -365,7 +331,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     );
   }
 
-  Widget _buildArticleCard(Map<String, dynamic> article) {
+  Widget _buildArticleCard(ArticleModel article) {
     return Container(
       width: 160,
       margin: const EdgeInsets.all(5),
@@ -397,7 +363,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      article['title'] ?? 'Article ${article['id'] ?? ""}',
+                      article.title,
                       textAlign: TextAlign.center,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
@@ -415,11 +381,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                       context,
                       MaterialPageRoute(
                           builder: (context) => ArticleDetailScreen(
-                                articleId: article['id'],
-                                title: article['title'] ?? 'Untitled',
-                                content: article['content'] ??
-                                    'No content available',
-                                isPublished: article['isPublished'] ?? false,
+                                articleId: article.id,
+                                title: article.title,
+                                content: article.content,
+                                isPublished: article.isPublished,
                               )));
                 },
                 style: TextButton.styleFrom(
@@ -458,26 +423,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               ),
             ),
           ),
-          StreamBuilder<List<Map<String, dynamic>>>(
-            stream: _latestQuestionsStream,
-            builder: (context, snapshot) {
-              if (snapshot.hasError) {
-                return const Center(child: Text('Error loading questions'));
-              }
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-
-              final questions = snapshot.data ?? [];
+          ref.watch(questionsStreamProvider).when(
+            error: (e, _) => const Center(child: Text('Error loading questions')),
+            loading: () => const Center(child: CircularProgressIndicator()),
+            data: (questions) {
+              final latest = questions.take(3).toList();
               return ListView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 padding: const EdgeInsets.symmetric(horizontal: 15),
-                itemCount: questions.length,
-                itemBuilder: (context, index) {
-                  final question = questions[index];
-                  return _buildQuestionCard(question);
-                },
+                itemCount: latest.length,
+                itemBuilder: (context, index) => _buildQuestionCard(latest[index]),
               );
             },
           ),
@@ -486,10 +442,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     );
   }
 
-  Widget _buildQuestionCard(Map<String, dynamic> question) {
-    final questionText = question['question'] ?? 'No question text available';
-    final questionId = question['id'] ?? '';
-
+  Widget _buildQuestionCard(Question question) {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 5, vertical: 5),
       shape: RoundedRectangleBorder(
@@ -500,7 +453,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         leading: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: Colors.green.withValues(),
+            color: Colors.green.withValues(alpha: 0.1),
             shape: BoxShape.circle,
           ),
           child: const Icon(
@@ -509,7 +462,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           ),
         ),
         title: Text(
-          question['title'] ?? 'Untitled Question',
+          question.questionText,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: GoogleFonts.poppins(
             fontWeight: FontWeight.w500,
           ),
@@ -517,7 +472,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 8),
           child: Text(
-            'View Answer',
+            question.answer != null && question.answer!.isNotEmpty
+                ? 'View Answer'
+                : 'Awaiting Answer',
             style: GoogleFonts.poppins(
               color: Colors.green,
               fontWeight: FontWeight.w500,
@@ -532,8 +489,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           Navigator.push(
               context,
               MaterialPageRoute(
-                  builder: (context) => QuestionDetailPage(
-                      questionId: questionId, questionText: questionText)));
+                  builder: (context) => QuestionDetailPage(question: question)));
         },
       ),
     );
