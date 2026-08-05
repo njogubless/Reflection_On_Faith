@@ -1,0 +1,144 @@
+rules_version = '2';
+
+// Devotion (Reflection On Faith) — Firestore security rules.
+//
+// Context: prior to this file existing, the project had NO checked-in
+// security rules at all, and the client app shipped a "Grant Admin Rights"
+// button that worked because the deployed (console-configured) rules let
+// any authenticated user write arbitrary fields — including `isAdmin` — on
+// their own `users/{uid}` document. That UI has been removed; this file is
+// the actual fix; `isAdmin` is never client-writable, by anyone, ever.
+//
+// General shape: content collections are admin-curated (Sermons, testimony
+// books, article) or admin-moderated (Devotion self-recorded sermons,
+// questions/answers, comments) — see `lib/core/constants/firebase_constants.dart`
+// for the collection name constants mirrored here.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function isAdmin() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    function isUnchanged(field) {
+      return request.resource.data[field] == resource.data[field];
+    }
+
+    // ---------------------------------------------------------------
+    // users/{uid} — profile doc. Owner (or an admin) can read it; the
+    // owner can update their own profile fields, but `isAdmin` can never
+    // be set or changed by a client write, on create OR update — that is
+    // the whole fix for the self-escalation bug described above. Granting
+    // admin access is a Firebase Console / Admin SDK operation only.
+    // ---------------------------------------------------------------
+    match /users/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+
+      allow create: if isOwner(uid) &&
+        (!('isAdmin' in request.resource.data) || request.resource.data.isAdmin == false);
+
+      allow update: if isOwner(uid) &&
+        (!('isAdmin' in request.resource.data.diff(resource.data).affectedKeys())
+          || isUnchanged('isAdmin'));
+
+      // No client-side deletes of a user document.
+      allow delete: if false;
+    }
+
+    // ---------------------------------------------------------------
+    // Devotion — sermons recorded in-app by preachers, pending admin
+    // review before they appear anywhere public. `audioProvider` (the
+    // screen every user sees) only ever queries `approvalStatus ==
+    // 'approved'`, but that is a client-side filter — this rule is what
+    // actually stops a pending/rejected recording from being read by
+    // anyone but its uploader or an admin, and is what enforces the
+    // 25-minute sermon cap server-side (mirrors
+    // FirebaseConstants.maxSermonDurationSeconds on the client).
+    // ---------------------------------------------------------------
+    match /Devotion/{docId} {
+      allow read: if resource.data.approvalStatus == 'approved' ||
+        isAdmin() ||
+        (isSignedIn() && resource.data.uploaderId == request.auth.uid);
+
+      allow create: if isSignedIn() &&
+        request.resource.data.uploaderId == request.auth.uid &&
+        request.resource.data.approvalStatus == 'pending' &&
+        request.resource.data.duration is int &&
+        request.resource.data.duration >= 0 &&
+        request.resource.data.duration <= 1500; // 25 minutes, keep in sync
+                                                  // with maxSermonDurationSeconds
+
+      // Only admins move a recording through the review workflow
+      // (approve/reject, set approvedBy/approvedDate). There is no
+      // "edit after submit" feature in the app today, so this isn't
+      // opened up to the uploader.
+      allow update: if isAdmin();
+
+      allow delete: if isAdmin();
+    }
+
+    // ---------------------------------------------------------------
+    // Sermons — admin bulk-uploaded audio. No approval workflow; an
+    // admin publishing it directly is the approval.
+    // ---------------------------------------------------------------
+    match /Sermons/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // testimony — books. Same shape as Sermons.
+    match /testimony/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ---------------------------------------------------------------
+    // article — admin-authored articles/devotionals. Drafts
+    // (isPublished == false) are only visible to admins; the public
+    // `articleStreamProvider` filters on isPublished == true, and this
+    // rule is what actually enforces that instead of just hiding it in
+    // the UI.
+    // ---------------------------------------------------------------
+    match /article/{docId} {
+      allow read: if (resource.data.isPublished == true) || isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // comments — on articles. Anyone can read; a signed-in user can post
+    // a comment as themselves; only the comment's author or an admin can
+    // delete it (there's no edit-comment feature).
+    match /comments/{docId} {
+      allow read: if true;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if false;
+      allow delete: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+    }
+
+    // ---------------------------------------------------------------
+    // questions / (answers live inline on the question doc — see
+    // QuestionRepositoryImpl.answerQuestion). Anyone can read; a
+    // signed-in user can ask a question as themselves; only an admin can
+    // answer (write `answer`/`answeredAt`) or remove a question.
+    // ---------------------------------------------------------------
+    match /questions/{docId} {
+      allow read: if true;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Everything else is denied by default (Firestore rules are
+    // default-deny) — notably `feedback`, which is a defined constant
+    // with no feature actually wired up to it yet.
+  }
+}

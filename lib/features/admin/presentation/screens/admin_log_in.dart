@@ -29,46 +29,56 @@ class AdminLoginPage extends StatelessWidget {
             .doc(userId)
             .get();
 
-        if (userDoc.exists) {
-          final isAdmin = userDoc.data()?['isAdmin'] ?? false;
+        // SECURITY: Admin status is decided entirely server-side by this
+        // read. There is intentionally no client-side path anywhere in this
+        // app that can set `isAdmin` on a user document — that field is
+        // locked to admin/Console writes by firestore.rules. Do not add a
+        // "grant admin" affordance here; it would let any authenticated
+        // user promote themselves.
+        final isAdmin = userDoc.data()?['isAdmin'] ?? false;
 
-          if (isAdmin) {
-            if (!context.mounted) return;
-            Navigator.of(context).pushReplacement(
-              MaterialPageRoute(builder: (context) => AdminDashboard()),
-            );
-          } else {
-            scaffoldMessenger.showSnackBar(
-              SnackBar(
-                content: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('Logged in as User'),
-                    TextButton(
-                      onPressed: () async {
-                        await FirebaseFirestore.instance
-                            .collection('users')
-                            .doc(userId)
-                            .update({'isAdmin': true});
-                        scaffoldMessenger.showSnackBar(
-                          const SnackBar(content: Text('Admin role granted')),
-                        );
-                      },
-                      child: const Text('Grant Admin Rights'),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }
+        if (!context.mounted) return;
+
+        if (isAdmin) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => const AdminDashboard()),
+          );
         } else {
           scaffoldMessenger.showSnackBar(
-            const SnackBar(content: Text('User not found in Firestore')),
+            const SnackBar(
+              content: Text(
+                'This account does not have admin access. Contact an '
+                'existing administrator if you believe this is a mistake.',
+              ),
+            ),
           );
+          await FirebaseAuth.instance.signOut();
         }
+      } on FirebaseAuthException catch (e) {
+        String message;
+        switch (e.code) {
+          case 'user-not-found':
+          case 'wrong-password':
+          case 'invalid-credential':
+            message = 'Incorrect email or password.';
+            break;
+          case 'invalid-email':
+            message = 'That email address looks invalid.';
+            break;
+          case 'user-disabled':
+            message = 'This account has been disabled.';
+            break;
+          case 'too-many-requests':
+            message = 'Too many attempts. Please wait a moment and try again.';
+            break;
+          default:
+            message = 'Login failed. Please try again.';
+        }
+        scaffoldMessenger.showSnackBar(SnackBar(content: Text(message)));
       } catch (e) {
         scaffoldMessenger.showSnackBar(
-          SnackBar(content: Text('Login failed: $e')),
+          const SnackBar(
+              content: Text('Something went wrong. Please try again.')),
         );
       }
     }
@@ -103,6 +113,7 @@ class AdminLoginPage extends StatelessWidget {
                     const SizedBox(height: 16),
                     TextFormField(
                       controller: emailController,
+                      keyboardType: TextInputType.emailAddress,
                       decoration: const InputDecoration(
                         prefixIcon: Icon(Icons.email),
                         labelText: 'Email',
