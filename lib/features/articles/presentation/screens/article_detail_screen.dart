@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:devotion/core/constants/firebase_constants.dart';
 
@@ -7,6 +8,11 @@ class ArticleDetailScreen extends StatefulWidget {
   final String title;
   final String content;
   final bool isPublished;
+
+  /// Only the admin article-management screen should pass `true`. It's what
+  /// shows the publish/draft chip and lets the viewer delete other people's
+  /// comments — this used to default to `true`, which meant every regular
+  /// reader saw and could use admin-only comment moderation controls.
   final bool isAdminView;
 
   const ArticleDetailScreen({
@@ -15,7 +21,7 @@ class ArticleDetailScreen extends StatefulWidget {
     required this.title,
     required this.content,
     required this.isPublished,
-    this.isAdminView = true,
+    this.isAdminView = false,
   });
 
   @override
@@ -29,32 +35,44 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
     final comment = _commentController.text.trim();
     final scaffoldMessenger = ScaffoldMessenger.of(context);
     if (comment.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      scaffoldMessenger.showSnackBar(
         const SnackBar(content: Text('Please enter a comment')),
       );
       return;
     }
 
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      scaffoldMessenger.showSnackBar(
+        const SnackBar(content: Text('Please sign in to comment')),
+      );
+      return;
+    }
+
     try {
-      await FirebaseFirestore.instance.collection('comments').add({
+      await FirebaseFirestore.instance.collection(FirebaseConstants.commentsCollection).add({
         'articleId': widget.articleId,
         'comment': comment,
+        'userId': user.uid,
+        'authorName': user.displayName ?? 'Anonymous',
         'timestamp': FieldValue.serverTimestamp(),
       });
       _commentController.clear();
 
+      if (!mounted) return;
       scaffoldMessenger.showSnackBar(
         const SnackBar(content: Text('Comment added successfully')),
       );
     } catch (e) {
       scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text('Error adding comment: $e')),
+        const SnackBar(content: Text('Could not add your comment. Please try again.')),
       );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
         title: const Text('Article Details'),
@@ -66,54 +84,67 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
                     child: Text(
                       widget.title,
-                      style: const TextStyle(
-                          fontSize: 22, fontWeight: FontWeight.bold),
+                      style: theme.textTheme.headlineSmall
+                          ?.copyWith(fontWeight: FontWeight.bold),
                     ),
                   ),
-                  if (widget.isAdminView)
+                  if (widget.isAdminView) ...[
+                    const SizedBox(width: 8),
                     Chip(
-                      label: Text(
-                        widget.isPublished ? 'Published' : 'Draft',
-                        style: TextStyle(
-                          color:
-                              widget.isPublished ? Colors.white : Colors.black,
-                        ),
-                      ),
+                      label: Text(widget.isPublished ? 'Published' : 'Draft'),
                       backgroundColor: widget.isPublished
-                          ? Colors.green
-                          : Colors.grey.shade300,
+                          ? Colors.green.withValues(alpha: 0.15)
+                          : theme.colorScheme.surfaceContainerHighest,
+                      labelStyle: TextStyle(
+                        color: widget.isPublished
+                            ? Colors.green.shade700
+                            : theme.colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
+                  ],
                 ],
               ),
               const SizedBox(height: 16),
-              Text(widget.content, style: const TextStyle(fontSize: 16)),
+              Text(widget.content, style: theme.textTheme.bodyLarge?.copyWith(height: 1.5)),
               const Divider(height: 32),
-              const Text("Comments",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              Text("Comments", style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance
-                    .collection('comments')
+                    .collection(FirebaseConstants.commentsCollection)
                     .where('articleId', isEqualTo: widget.articleId)
                     .orderBy('timestamp', descending: true)
+                    .limit(200)
                     .snapshots(),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 24),
+                      child: Center(child: CircularProgressIndicator()),
+                    );
                   }
 
                   if (snapshot.hasError) {
-                    return Text('Error loading comments: ${snapshot.error}');
+                    return Text(
+                      'Could not load comments.',
+                      style: TextStyle(color: theme.colorScheme.error),
+                    );
                   }
 
                   if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                    return const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 16),
-                      child: Text("No comments yet."),
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      child: Text(
+                        "No comments yet — be the first to comment.",
+                        style: theme.textTheme.bodyMedium
+                            ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                      ),
                     );
                   }
 
@@ -126,40 +157,66 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                       final comment =
                           comments[index].data() as Map<String, dynamic>;
                       final timestamp = comment['timestamp'] as Timestamp?;
+                      final currentUid =
+                          FirebaseAuth.instance.currentUser?.uid;
+                      final canDelete = widget.isAdminView ||
+                          (currentUid != null &&
+                              comment['userId'] == currentUid);
+                      final authorName = comment['authorName'] as String? ?? 'Anonymous';
 
                       return Card(
                         margin: const EdgeInsets.symmetric(vertical: 4),
                         child: Padding(
                           padding: const EdgeInsets.all(12),
-                          child: Column(
+                          child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                comment['comment'],
-                                style: const TextStyle(fontSize: 15),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                timestamp != null
-                                    ? _formatTimestamp(timestamp)
-                                    : 'Just now',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey.shade600,
+                              CircleAvatar(
+                                radius: 16,
+                                backgroundColor:
+                                    theme.colorScheme.primary.withValues(alpha: 0.1),
+                                child: Text(
+                                  authorName.isNotEmpty ? authorName[0].toUpperCase() : '?',
+                                  style: TextStyle(
+                                    color: theme.colorScheme.primary,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ),
-                              if (widget.isAdminView)
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.end,
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    TextButton(
-                                      onPressed: () =>
-                                          _deleteComment(comments[index].id),
-                                      child: const Text('Delete',
-                                          style: TextStyle(color: Colors.red)),
+                                    Text(authorName,
+                                        style: theme.textTheme.labelLarge
+                                            ?.copyWith(fontWeight: FontWeight.w600)),
+                                    const SizedBox(height: 2),
+                                    Text(comment['comment'], style: theme.textTheme.bodyMedium),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      timestamp != null
+                                          ? _formatTimestamp(timestamp)
+                                          : 'Just now',
+                                      style: theme.textTheme.bodySmall?.copyWith(
+                                        color: theme.colorScheme.onSurfaceVariant,
+                                      ),
                                     ),
+                                    if (canDelete)
+                                      Align(
+                                        alignment: Alignment.centerRight,
+                                        child: TextButton(
+                                          onPressed: () =>
+                                              _deleteComment(comments[index].id),
+                                          style: TextButton.styleFrom(
+                                            foregroundColor: theme.colorScheme.error,
+                                          ),
+                                          child: const Text('Delete'),
+                                        ),
+                                      ),
                                   ],
                                 ),
+                              ),
                             ],
                           ),
                         ),
@@ -215,7 +272,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
     try {
       await FirebaseFirestore.instance
-          .collection('comments')
+          .collection(FirebaseConstants.commentsCollection)
           .doc(commentId)
           .delete();
 
@@ -224,7 +281,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
       );
     } catch (e) {
       scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text('Error deleting comment: $e')),
+        const SnackBar(content: Text('Could not delete the comment. Please try again.')),
       );
     }
   }
@@ -298,7 +355,7 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
       Navigator.pop(ctx);
     } catch (e) {
       scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text('Error updating article: $e')),
+        const SnackBar(content: Text('Could not update the article. Please try again.')),
       );
     }
   }

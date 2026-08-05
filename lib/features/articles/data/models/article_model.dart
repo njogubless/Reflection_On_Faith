@@ -39,29 +39,9 @@ class ArticleModel {
   }
 }
 
-
-abstract class ArticleRemoteDatasource {
-  Future<void> createArticle(ArticleModel article);
-  Future<List<ArticleModel>> getArticles();
-}
-
-
-class FirebaseArticleDatasource implements ArticleRemoteDatasource {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-
-  @override
-  Future<void> createArticle(ArticleModel article) async {
-    await _firestore
-        .collection('articles')
-        .doc(article.id as String?)
-        .set(article.toMap());
-  }
-
-  @override
-  Future<List<ArticleModel>> getArticles() async {
-    final querySnapshot = await _firestore.collection('articles').get();
-    return querySnapshot.docs
-        .map((doc) => ArticleModel.fromMap(doc.data()))
-        .toList();
-  }
-}
+// NOTE: This file previously also defined `ArticleRemoteDatasource` /
+// `FirebaseArticleDatasource`, a second, unused Firestore access path that
+// read/wrote the collection name `'articles'` (plural) while every live
+// screen uses `FirebaseConstants.articleCollection` (`'article'`, singular)
+// via `article_provider.dart`. It was dead code — removed rather than fixed,
+// since `article_provider.dart` + `ArticleModel` already cover this need.
