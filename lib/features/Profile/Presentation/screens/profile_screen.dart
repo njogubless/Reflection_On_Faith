@@ -1,6 +1,6 @@
 import 'package:devotion/core/common/widgets/state_views.dart';
 import 'package:devotion/features/Profile/Data/Model/user_profile.dart';
-import 'package:devotion/features/Profile/Domain/Providers.dart';
+import 'package:devotion/features/Profile/Domain/providers.dart';
 import 'package:devotion/features/Profile/Presentation/widgets/edit_profile.dart';
 import 'package:devotion/features/Profile/Presentation/widgets/profile_header.dart';
 import 'package:devotion/features/Profile/Presentation/widgets/profile_stats.dart';

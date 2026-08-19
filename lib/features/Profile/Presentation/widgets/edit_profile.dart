@@ -1,6 +1,6 @@
 import 'package:devotion/features/Profile/Data/Model/user_profile.dart';
 import 'package:devotion/features/Profile/Data/repository/profile_repository.dart';
-import 'package:devotion/features/Profile/Domain/Providers.dart';
+import 'package:devotion/features/Profile/Domain/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 

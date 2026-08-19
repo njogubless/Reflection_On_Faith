@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:devotion/core/constants/firebase_constants.dart';
-import 'package:devotion/features/admin/presentation/screens/writeArticle.dart';
+import 'package:devotion/features/admin/presentation/screens/write_article.dart';
 import 'package:devotion/features/articles/presentation/providers/article_provider.dart';
 import 'package:devotion/features/articles/presentation/screens/article_detail_screen.dart';
 import 'package:flutter/material.dart';

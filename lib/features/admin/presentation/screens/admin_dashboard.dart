@@ -1,5 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:devotion/features/admin/presentation/screens/Adminquestionscreen.dart';
+import 'package:devotion/features/admin/presentation/screens/admin_questionscreen.dart';
 import 'package:devotion/features/admin/presentation/screens/file_management_screen.dart';
 import 'package:devotion/features/admin/presentation/screens/upload_files.dart';
 import 'package:devotion/features/articles/presentation/screens/aricle_management_screen.dart';

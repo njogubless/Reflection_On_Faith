@@ -4,7 +4,7 @@ import 'package:devotion/features/articles/presentation/screens/article_screen.d
 import 'package:devotion/features/auth/presentation/screen/home_screen.dart';
 import 'package:devotion/features/books/presentation/screen/book_screen.dart';
 import 'package:devotion/widget/app_drawer.dart';
-import 'package:devotion/widget/custom_App_Bar.dart';
+import 'package:devotion/widget/custom_app_bar.dart';
 import 'package:flutter/material.dart';
 
 class MainLayout extends StatefulWidget {
